@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BuddyBoss Location Finder
  * Description: Allows BuddyBoss users to set their location and search for other members by proximity
- * Version: 1.0.3
+ * Version: 1.0.5
  * Author: Jason Wood
  * Text Domain: bb-location-finder
  * Domain Path: /languages
@@ -117,6 +117,9 @@ class BB_Location_Finder {
         
         // Handle network settings
         add_action('network_admin_edit_bb_location_finder_update_network_options', array($this, 'handle_network_options'));
+
+        // Add shortcode tester
+        $this->add_shortcode_tester();
     }
     
     /**
@@ -493,6 +496,28 @@ class BB_Location_Finder {
         $wpdb->query("DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE 'bb_location_%'");
         */
     }
+
+    // Add this near the end of your main plugin file before the closing class bracket
+public function add_shortcode_tester() {
+    // Only add for administrators
+    if (!current_user_can('administrator')) {
+        return;
+    }
+    
+    add_shortcode('bb_location_test', function() {
+        return '<div style="border: 2px solid green; padding: 10px; margin: 10px 0; background: #f0f8f0;">
+            <h3>BB Location Finder Shortcode Test</h3>
+            <p>If you can see this message, WordPress shortcode processing is working correctly.</p>
+            <p>Debug Info:</p>
+            <ul>
+                <li>Plugin Version: ' . BB_LOCATION_FINDER_VERSION . '</li>
+                <li>bb_location_setter shortcode registered: ' . (shortcode_exists('bb_location_setter') ? 'Yes' : 'No') . '</li>
+                <li>bb_location_search shortcode registered: ' . (shortcode_exists('bb_location_search') ? 'Yes' : 'No') . '</li>
+                <li>Google Maps API Key set: ' . (empty(get_site_option('bb_location_google_api_key')) ? 'No' : 'Yes') . '</li>
+            </ul>
+        </div>';
+    });
+}
 }
 
 // Initialize the plugin

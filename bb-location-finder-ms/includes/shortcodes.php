@@ -4,17 +4,29 @@
 class BB_Location_Shortcodes {
     
     public function __construct() {
-        // Register shortcodes
+        // Register shortcodes with priority
         add_shortcode('bb_location_setter', array($this, 'location_setter_shortcode'));
         add_shortcode('bb_location_search', array($this, 'location_search_shortcode'));
         
         // Add AJAX handlers
         add_action('wp_ajax_bb_location_update', array($this, 'ajax_update_location'));
         add_action('wp_ajax_nopriv_bb_location_update', array($this, 'ajax_update_location_unauthorized'));
+        
+        // Debug information
+        add_action('wp_footer', array($this, 'debug_info'));
     }
     
     /**
-     * Location setter shortcode
+     * Debug information for administrators
+     */
+    public function debug_info() {
+        if (current_user_can('administrator')) {
+            echo '<!-- BB Location Shortcodes Debug: Initialized and Active -->';
+        }
+    }
+    
+    /**
+     * Location setter shortcode - completely rewritten for reliability
      */
     public function location_setter_shortcode($atts) {
         // Parse attributes
@@ -44,56 +56,54 @@ class BB_Location_Shortcodes {
             $searchable = 'yes'; // Default to yes
         }
         
-        // Start output buffering
-        ob_start();
-        ?>
-        <div class="bb-location-setter-form">
-            <form id="bb-location-setter" method="post">
-                <?php wp_nonce_field('bb_location_setter_nonce', 'bb_location_nonce'); ?>
-                
-                <div class="form-field">
-                    <label for="bb_location_city"><?php _e('City', 'bb-location-finder'); ?></label>
-                    <input type="text" id="bb_location_city" name="bb_location_city" value="<?php echo esc_attr($city); ?>" />
-                </div>
-                
-                <div class="form-field">
-                    <label for="bb_location_state"><?php _e('State/Province', 'bb-location-finder'); ?></label>
-                    <input type="text" id="bb_location_state" name="bb_location_state" value="<?php echo esc_attr($state); ?>" />
-                </div>
-                
-                <div class="form-field">
-                    <label for="bb_location_country"><?php _e('Country', 'bb-location-finder'); ?></label>
-                    <input type="text" id="bb_location_country" name="bb_location_country" value="<?php echo esc_attr($country); ?>" />
-                </div>
-                
-                <!-- Hidden fields for coordinates -->
-                <input type="hidden" name="bb_location_lat" id="bb_location_lat" value="<?php echo esc_attr(get_user_meta($user_id, 'bb_location_lat', true)); ?>" />
-                <input type="hidden" name="bb_location_lng" id="bb_location_lng" value="<?php echo esc_attr(get_user_meta($user_id, 'bb_location_lng', true)); ?>" />
-                
-                <div class="form-field privacy-field">
-                    <label>
-                        <input type="checkbox" name="bb_location_searchable" value="yes" <?php checked($searchable, 'yes'); ?> />
-                        <?php _e('Allow others to find me in location searches', 'bb-location-finder'); ?>
-                    </label>
-                </div>
-                
-                <div class="form-field">
-                    <button type="submit" class="button"><?php echo esc_html($atts['button_text']); ?></button>
-                </div>
-                
-                <?php if ($atts['redirect']): ?>
-                    <input type="hidden" name="redirect" value="<?php echo esc_url($atts['redirect']); ?>" />
-                <?php endif; ?>
-            </form>
-            
-            <div id="bb-location-message" style="display: none;"></div>
-        </div>
-        <?php
-        return ob_get_clean();
+        // Create output
+        $output = '<div class="bb-location-setter-form">';
+        $output .= '<form id="bb-location-setter" method="post">';
+        $output .= wp_nonce_field('bb_location_setter_nonce', 'bb_location_nonce', true, false);
+        
+        $output .= '<div class="form-field">';
+        $output .= '<label for="bb_location_city">' . __('City', 'bb-location-finder') . '</label>';
+        $output .= '<input type="text" id="bb_location_city" name="bb_location_city" value="' . esc_attr($city) . '" />';
+        $output .= '</div>';
+        
+        $output .= '<div class="form-field">';
+        $output .= '<label for="bb_location_state">' . __('State/Province', 'bb-location-finder') . '</label>';
+        $output .= '<input type="text" id="bb_location_state" name="bb_location_state" value="' . esc_attr($state) . '" />';
+        $output .= '</div>';
+        
+        $output .= '<div class="form-field">';
+        $output .= '<label for="bb_location_country">' . __('Country', 'bb-location-finder') . '</label>';
+        $output .= '<input type="text" id="bb_location_country" name="bb_location_country" value="' . esc_attr($country) . '" />';
+        $output .= '</div>';
+        
+        // Hidden fields for coordinates
+        $output .= '<input type="hidden" name="bb_location_lat" id="bb_location_lat" value="' . esc_attr(get_user_meta($user_id, 'bb_location_lat', true)) . '" />';
+        $output .= '<input type="hidden" name="bb_location_lng" id="bb_location_lng" value="' . esc_attr(get_user_meta($user_id, 'bb_location_lng', true)) . '" />';
+        
+        $output .= '<div class="form-field privacy-field">';
+        $output .= '<label>';
+        $output .= '<input type="checkbox" name="bb_location_searchable" value="yes" ' . checked($searchable, 'yes', false) . ' />';
+        $output .= __('Allow others to find me in location searches', 'bb-location-finder');
+        $output .= '</label>';
+        $output .= '</div>';
+        
+        $output .= '<div class="form-field">';
+        $output .= '<button type="submit" class="button">' . esc_html($atts['button_text']) . '</button>';
+        $output .= '</div>';
+        
+        if ($atts['redirect']) {
+            $output .= '<input type="hidden" name="redirect" value="' . esc_url($atts['redirect']) . '" />';
+        }
+        
+        $output .= '</form>';
+        $output .= '<div id="bb-location-message" style="display: none;"></div>';
+        $output .= '</div>';
+        
+        return $output;
     }
     
     /**
-     * Location search shortcode
+     * Location search shortcode - completely rewritten for reliability
      */
     public function location_search_shortcode($atts) {
         // Parse attributes
@@ -120,62 +130,59 @@ class BB_Location_Shortcodes {
         // Unit display
         $unit_display = ($atts['unit'] == 'mi') ? __('miles', 'bb-location-finder') : __('kilometers', 'bb-location-finder');
         
-        // Start output buffering
-        ob_start();
-        ?>
-        <div class="bb-location-search-container">
-            <form id="bb-location-search-form">
-                <?php wp_nonce_field('bb_location_search_nonce', 'search_nonce'); ?>
-                
-                <div class="search-fields">
-                    <div class="form-field">
-                        <label for="bb_search_location"><?php _e('Location', 'bb-location-finder'); ?></label>
-                        <input type="text" id="bb_search_location" name="location" placeholder="<?php esc_attr_e('Enter city, state, or country', 'bb-location-finder'); ?>" />
-                    </div>
-                    
-                    <div class="form-field">
-                        <label for="bb_search_radius"><?php _e('Radius', 'bb-location-finder'); ?></label>
-                        <select id="bb_search_radius" name="radius">
-                            <?php echo $radius_options; ?>
-                        </select>
-                        <span class="unit"><?php echo esc_html($unit_display); ?></span>
-                    </div>
-                    
-                    <div class="form-field">
-                        <button type="submit" class="button"><?php _e('Search', 'bb-location-finder'); ?></button>
-                    </div>
-                </div>
-                
-                <input type="hidden" name="unit" value="<?php echo esc_attr($atts['unit']); ?>" />
-            </form>
-            
-            <div id="bb-location-results" class="location-results">
-                <div class="result-count"></div>
-                
-                <div class="result-container">
-                    <?php if ($atts['show_map'] == 'yes'): ?>
-                    <div id="bb-location-map" style="height: <?php echo esc_attr($atts['map_height']); ?>;"></div>
-                    <?php endif; ?>
-                    
-                    <div id="bb-location-users" class="user-results"></div>
-                </div>
-            </div>
-        </div>
+        // Create output
+        $output = '<div class="bb-location-search-container">';
+        $output .= '<form id="bb-location-search-form">';
+        $output .= wp_nonce_field('bb_location_search_nonce', 'search_nonce', true, false);
         
-        <?php if ($atts['show_map'] == 'yes'): ?>
-        <script>
-        jQuery(document).ready(function($) {
-            // Initialize the map
-            if (typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
-                if (typeof window.bbLocationFinder !== 'undefined' && typeof window.bbLocationFinder.initMap === 'function') {
-                    window.bbLocationFinder.initMap();
-                }
-            }
-        });
-        </script>
-        <?php endif; ?>
-        <?php
-        return ob_get_clean();
+        $output .= '<div class="search-fields">';
+        $output .= '<div class="form-field">';
+        $output .= '<label for="bb_search_location">' . __('Location', 'bb-location-finder') . '</label>';
+        $output .= '<input type="text" id="bb_search_location" name="location" placeholder="' . esc_attr__('Enter city, state, or country', 'bb-location-finder') . '" />';
+        $output .= '</div>';
+        
+        $output .= '<div class="form-field">';
+        $output .= '<label for="bb_search_radius">' . __('Radius', 'bb-location-finder') . '</label>';
+        $output .= '<select id="bb_search_radius" name="radius">';
+        $output .= $radius_options;
+        $output .= '</select>';
+        $output .= '<span class="unit">' . esc_html($unit_display) . '</span>';
+        $output .= '</div>';
+        
+        $output .= '<div class="form-field">';
+        $output .= '<button type="submit" class="button">' . __('Search', 'bb-location-finder') . '</button>';
+        $output .= '</div>';
+        $output .= '</div>';
+        
+        $output .= '<input type="hidden" name="unit" value="' . esc_attr($atts['unit']) . '" />';
+        $output .= '</form>';
+        
+        $output .= '<div id="bb-location-results" class="location-results">';
+        $output .= '<div class="result-count"></div>';
+        
+        $output .= '<div class="result-container">';
+        if ($atts['show_map'] == 'yes') {
+            $output .= '<div id="bb-location-map" style="height: ' . esc_attr($atts['map_height']) . ';"></div>';
+        }
+        
+        $output .= '<div id="bb-location-users" class="user-results"></div>';
+        $output .= '</div>';
+        $output .= '</div>';
+        $output .= '</div>';
+        
+        if ($atts['show_map'] == 'yes') {
+            $output .= '<script>';
+            $output .= 'jQuery(document).ready(function($) {';
+            $output .= '  if (typeof google !== "undefined" && typeof google.maps !== "undefined") {';
+            $output .= '    if (typeof window.bbLocationFinder !== "undefined" && typeof window.bbLocationFinder.initMap === "function") {';
+            $output .= '      window.bbLocationFinder.initMap();';
+            $output .= '    }';
+            $output .= '  }';
+            $output .= '});';
+            $output .= '</script>';
+        }
+        
+        return $output;
     }
     
     /**
@@ -233,5 +240,5 @@ class BB_Location_Shortcodes {
     }
 }
 
-// Initialize shortcodes
-new BB_Location_Shortcodes();
+// Initialize shortcodes - this line is critical!
+$bb_location_shortcodes = new BB_Location_Shortcodes();
