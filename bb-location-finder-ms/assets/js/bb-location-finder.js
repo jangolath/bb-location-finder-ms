@@ -61,17 +61,6 @@
         
         if (searchField) {
             var searchAutocomplete = new google.maps.places.Autocomplete(searchField);
-            
-            searchAutocomplete.addListener('place_changed', function() {
-                var place = searchAutocomplete.getPlace();
-                
-                if (!place.geometry) {
-                    return;
-                }
-                
-                // Auto-submit the form
-                $('#bb-location-search-form').submit();
-            });
         }
     }
     
@@ -90,7 +79,7 @@
             var $message = $('#bb-location-message');
             
             $.ajax({
-                url: ajaxurl,
+                url: bbLocationFinderVars.ajaxurl,
                 type: 'POST',
                 data: {
                     action: 'bb_location_update',
@@ -126,166 +115,10 @@
                 }
             });
         });
-    });
-    
-})(jQuery);
-
-// Additional Search Logic
-jQuery(document).ready(function($) {
-    $('#bb-location-search-form').on('submit', function(e) {
-        console.log('Search form submitted');
-        e.preventDefault();
-        
-        var location = $('#bb_search_location').val();
-        var radius = $('#bb_search_radius').val();
-        var unit = $('input[name="unit"]').val();
-        var nonce = $('#search_nonce').val();
-        
-        console.log('Search parameters:', {
-            location: location,
-            radius: radius,
-            unit: unit
-        });
-        
-        // Show a loading indicator
-        $('#bb-location-results').addClass('loading').html('<p>Searching...</p>');
-        
-        // Make the AJAX request
-        $.ajax({
-            url: bbLocationFinderVars.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'bb_location_search',
-                nonce: nonce,
-                location: location,
-                radius: radius,
-                unit: unit
-            },
-            success: function(response) {
-                console.log('Search response:', response);
-                
-                $('#bb-location-results').removeClass('loading');
-                
-                if (response.success) {
-                    // Handle successful response
-                    displaySearchResults(response.data);
-                } else {
-                    // Handle error
-                    $('#bb-location-results').html('<div class="search-error">' + 
-                        (response.data.message || 'An error occurred during the search.') + '</div>');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('AJAX error:', error);
-                $('#bb-location-results').removeClass('loading').html(
-                    '<div class="search-error">An error occurred while processing your request.</div>'
-                );
-            }
-        });
-    });
-    
-    function displaySearchResults(data) {
-        console.log('Displaying search results:', data);
-        
-        var $results = $('#bb-location-results');
-        var $count = $results.find('.result-count');
-        var $users = $('#bb-location-users');
-        
-        // Update result count
-        var countText = data.count + ' ' + 
-            (data.count === 1 ? bbLocationFinderVars.strings.member : bbLocationFinderVars.strings.members) + 
-            ' ' + bbLocationFinderVars.strings.found;
-        $count.text(countText);
-        
-        // Clear previous results
-        $users.empty();
-        
-        if (data.count === 0) {
-            $users.html('<div class="no-results">' + bbLocationFinderVars.strings.no_results + '</div>');
-            return;
-        }
-        
-        // Display user results
-        $.each(data.users, function(index, user) {
-            var userHtml = '<div class="user-item" data-id="' + user.id + '">' +
-                '<div class="user-avatar"><img src="' + user.avatar + '" alt="' + user.name + '"></div>' +
-                '<div class="user-info">' +
-                '<h4><a href="' + user.profile_url + '">' + user.name + '</a></h4>' +
-                '<p class="user-location">' + user.location.join(', ') + '</p>' +
-                '<p class="user-distance">' + user.distance + ' ' + 
-                (data.unit === 'mi' ? 'miles' : 'km') + ' away</p>' +
-                '</div>' +
-                '</div>';
-            
-            $users.append(userHtml);
-        });
-        
-        // Initialize map if needed
-        if ($('#bb-location-map').length && typeof google !== 'undefined') {
-            initializeMap(data);
-        }
-    }
-    
-    function initializeMap(data) {
-        console.log('Initializing map with center:', data.center);
-        
-        var map = new google.maps.Map(document.getElementById('bb-location-map'), {
-            zoom: 10,
-            center: {lat: parseFloat(data.center.lat), lng: parseFloat(data.center.lng)}
-        });
-        
-        // Add center marker
-        new google.maps.Marker({
-            position: {lat: parseFloat(data.center.lat), lng: parseFloat(data.center.lng)},
-            map: map,
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 10,
-                fillColor: "#4285F4",
-                fillOpacity: 0.8,
-                strokeColor: "#FFFFFF",
-                strokeWeight: 2
-            },
-            title: bbLocationFinderVars.strings.search_center
-        });
-        
-        // Add user markers
-        $.each(data.users, function(index, user) {
-            var marker = new google.maps.Marker({
-                position: {lat: parseFloat(user.lat), lng: parseFloat(user.lng)},
-                map: map,
-                title: user.name
-            });
-            
-            // Add info window
-            var infoWindow = new google.maps.InfoWindow({
-                content: '<div class="map-info-window">' +
-                    '<h4>' + user.name + '</h4>' +
-                    '<p>' + user.location.join(', ') + '</p>' +
-                    '<p>' + user.distance + ' ' + (data.unit === 'mi' ? 'miles' : 'km') + ' away</p>' +
-                    '<p><a href="' + user.profile_url + '">' + 
-                    bbLocationFinderVars.strings.view_profile + '</a></p>' +
-                    '</div>'
-            });
-            
-            marker.addListener('click', function() {
-                infoWindow.open(map, marker);
-            });
-        });
-    }
-});
-
-(function($) {
-    'use strict';
-    
-    // Initialize search functionality
-    $(document).ready(function() {
-        console.log('Document ready - initializing search functionality');
         
         // Handle search form submission
         $(document).on('submit', '#bb-location-search-form', function(e) {
             e.preventDefault();
-            console.log('Search form submitted');
             
             var $form = $(this);
             var $results = $('#bb-location-results');
@@ -302,15 +135,12 @@ jQuery(document).ready(function($) {
                 unit: $form.find('[name="unit"]').val()
             };
             
-            console.log('Search parameters:', formData);
-            
             // Make AJAX request
             $.ajax({
                 url: bbLocationFinderVars.ajaxurl,
                 type: 'POST',
                 data: formData,
                 success: function(response) {
-                    console.log('Search response:', response);
                     $results.removeClass('loading');
                     
                     if (response.success) {
@@ -319,8 +149,7 @@ jQuery(document).ready(function($) {
                         $results.html('<div class="search-error">' + response.data.message + '</div>');
                     }
                 },
-                error: function(xhr, status, error) {
-                    console.error('AJAX error:', error);
+                error: function() {
                     $results.removeClass('loading');
                     $results.html('<div class="search-error">' + bbLocationFinderVars.strings.search_error + '</div>');
                 }
@@ -328,8 +157,6 @@ jQuery(document).ready(function($) {
         });
         
         function displaySearchResults(data) {
-            console.log('Displaying results:', data);
-            
             var $results = $('#bb-location-results');
             var $resultCount = $('<div class="result-count"></div>');
             var $resultContainer = $('<div class="result-container"></div>');
@@ -380,8 +207,6 @@ jQuery(document).ready(function($) {
         }
         
         function initMap(data) {
-            console.log('Initializing map');
-            
             // Create map
             var map = new google.maps.Map(document.getElementById('bb-location-map'), {
                 zoom: 10,
@@ -440,7 +265,7 @@ jQuery(document).ready(function($) {
     // Define global function
     window.bbLocationFinder = {
         initMap: function() {
-            console.log('bbLocationFinder.initMap called, but no data available yet');
+            // This is a placeholder function that will be overridden when search results are displayed
         }
     };
     

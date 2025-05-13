@@ -4,24 +4,9 @@
 class BB_Location_Shortcodes {
     
     public function __construct() {
-        // Remove the automatic registration to avoid conflicts
-        // Only keep AJAX handlers
+        // Keep only the necessary AJAX handlers
         add_action('wp_ajax_bb_location_update', array($this, 'ajax_update_location'));
         add_action('wp_ajax_nopriv_bb_location_update', array($this, 'ajax_update_location_unauthorized'));
-        
-        // Add debug info for admins
-        if (current_user_can('administrator') && function_exists('bb_location_debug_log')) {
-            bb_location_debug_log('BB_Location_Shortcodes class instantiated');
-        }
-    }
-    
-    /**
-     * Debug information for administrators
-     */
-    public function debug_info() {
-        if (current_user_can('administrator')) {
-            echo '<!-- BB Location Shortcodes Debug: Initialized and Active -->';
-        }
     }
     
     /**
@@ -93,7 +78,7 @@ class BB_Location_Shortcodes {
         if ($atts['redirect']) {
             $output .= '<input type="hidden" name="redirect" value="' . esc_url($atts['redirect']) . '" />';
         }
-
+        
         $output .= '</form>';
         $output .= '<div id="bb-location-message" style="display: none;"></div>';
         $output .= '</div>';
@@ -169,91 +154,6 @@ class BB_Location_Shortcodes {
         $output .= '</div>';
         $output .= '</div>';
         
-        if ($atts['show_map'] == 'yes') {
-            $output .= '<script>';
-            $output .= 'jQuery(document).ready(function($) {';
-            $output .= '  if (typeof google !== "undefined" && typeof google.maps !== "undefined") {';
-            $output .= '    if (typeof window.bbLocationFinder !== "undefined" && typeof window.bbLocationFinder.initMap === "function") {';
-            $output .= '      window.bbLocationFinder.initMap();';
-            $output .= '    }';
-            $output .= '  }';
-            $output .= '});';
-            $output .= '</script>';
-        }
-        
-        $output .= '<script>
-            console.log("Location search shortcode loaded");
-            jQuery(document).ready(function($) {
-                console.log("Document ready in search shortcode");
-                // Set up search form submission handler
-                $("#bb-location-search-form").on("submit", function(e) {
-                    console.log("Search form submitted via direct handler");
-                });
-            });
-            </script>';
-        
-        if (current_user_can('administrator')) {
-            $output .= '<div style="margin-top: 30px; padding: 15px; border: 1px solid #ccc; background: #f8f8f8;">
-                <h3>Admin Debug Panel</h3>
-                <button id="check-search-ajax" class="button">Test AJAX Call</button>
-                <div id="ajax-result" style="margin-top: 10px; padding: 10px; background: #fff; border: 1px solid #ddd;"></div>
-                <script>
-                    jQuery(document).ready(function($) {
-                        $("#check-search-ajax").on("click", function() {
-                            var $result = $("#ajax-result");
-                            $result.html("Testing AJAX call...");
-                            
-                            $.ajax({
-                                url: bbLocationFinderVars.ajaxurl,
-                                type: "POST",
-                                data: {
-                                    action: "bb_location_search",
-                                    nonce: "' . wp_create_nonce('bb_location_search_nonce') . '",
-                                    location: "Kansas City, MO",
-                                    radius: 50,
-                                    unit: "mi"
-                                },
-                                success: function(response) {
-                                    $result.html("<p>AJAX Success:</p><pre>" + JSON.stringify(response, null, 2) + "</pre>");
-                                },
-                                error: function(xhr, status, error) {
-                                    $result.html("<p>AJAX Error:</p><p>" + error + "</p>");
-                                    console.error(xhr.responseText);
-                                }
-                            });
-                        });
-                    });
-                </script>
-            </div>';
-        }
-
-        // TODO remove after fixing this forces the geocoding test method to run
-        if (current_user_can('administrator')) {
-            $output .= do_shortcode('[bb_location_geocoding_test]');
-        }
-
-        // Add at the end of the location_search_shortcode method, before returning $output: TODO remove after verifying fix
-        if (current_user_can('administrator')) {
-            $output .= '<div style="margin-top: 20px; padding: 15px; border: 1px solid #ccc; background: #f8f8f8;">
-                <h3>Google Maps Script Check</h3>
-                <div id="maps-script-status">Checking Google Maps script...</div>
-                <script>
-                    jQuery(document).ready(function($) {
-                        var $status = $("#maps-script-status");
-                        if (typeof google !== "undefined") {
-                            if (typeof google.maps !== "undefined") {
-                                $status.html("<span style=\"color: green;\">✓ Google Maps script is loaded correctly</span>");
-                            } else {
-                                $status.html("<span style=\"color: red;\">✗ Google object exists but maps is undefined</span>");
-                            }
-                        } else {
-                            $status.html("<span style=\"color: red;\">✗ Google Maps script is not loaded</span>");
-                        }
-                    });
-                </script>
-            </div>';
-        }
-
         return $output;
     }
     
@@ -299,13 +199,9 @@ class BB_Location_Shortcodes {
             update_user_meta($user_id, 'bb_location_lat', $lat);
             update_user_meta($user_id, 'bb_location_lng', $lng);
         } else {
-            // Geocode the address if geocoding class exists
-            if (class_exists('BB_Location_Geocoding')) {
-                $geocoder = new BB_Location_Geocoding();
-                $geocoder->geocode_user_location($user_id);
-            } else if (function_exists('bb_location_debug_log')) {
-                bb_location_debug_log('BB_Location_Geocoding class not found for geocoding');
-            }
+            // Geocode the address
+            $geocoder = new BB_Location_Geocoding();
+            $geocoder->geocode_user_location($user_id);
         }
         
         // Send success response
