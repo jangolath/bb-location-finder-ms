@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BuddyBoss Location Finder
  * Description: Allows BuddyBoss users to set their location and search for other members by proximity
- * Version: 1.0.5
+ * Version: 1.0.6
  * Author: Jason Wood
  * Text Domain: bb-location-finder
  * Domain Path: /languages
@@ -22,7 +22,7 @@ class BB_Location_Finder {
     /**
      * Plugin version
      */
-    const VERSION = '1.0.0';
+    const VERSION = '1.0.6';
     
     /**
      * Singleton instance
@@ -278,23 +278,40 @@ class BB_Location_Finder {
         ));
     }
     
-    /**
-     * Initialize components
-     */
-    public function init_components() {
-        // Include required files
-        $this->include_files();
-        
-        // Initialize components
-        new BB_Location_Profile_Fields();
-        new BB_Location_Search();
-        new BB_Location_Shortcodes();
-        new BB_Location_Map();
-        
-        // Initialize with updated geocoding class
-        require_once BB_LOCATION_FINDER_DIR . 'includes/geocoding.php';
-        new BB_Location_Geocoding();
-    }
+/**
+ * Initialize components
+ */
+public function init_components() {
+    // Include required files
+    $this->include_files();
+    
+    // Initialize components
+    new BB_Location_Profile_Fields();
+    new BB_Location_Search();
+    new BB_Location_Map();
+    
+    // Initialize with updated geocoding class
+    require_once BB_LOCATION_FINDER_DIR . 'includes/geocoding.php';
+    new BB_Location_Geocoding();
+    
+    // Initialize shortcodes - done differently to ensure proper registration
+    $this->init_shortcodes();
+}
+
+/**
+ * Initialize shortcodes
+ */
+public function init_shortcodes() {
+    // For early registration, directly call register_shortcodes
+    $shortcodes = new BB_Location_Shortcodes();
+    
+    // Force-register shortcodes immediately
+    add_shortcode('bb_location_setter', array($shortcodes, 'location_setter_shortcode'));
+    add_shortcode('bb_location_search', array($shortcodes, 'location_search_shortcode'));
+    
+    // Store for later use
+    $this->shortcodes = $shortcodes;
+}
     
     /**
      * Include required files
@@ -304,6 +321,7 @@ class BB_Location_Finder {
         require_once BB_LOCATION_FINDER_DIR . 'includes/search-functions.php';
         require_once BB_LOCATION_FINDER_DIR . 'includes/shortcodes.php';
         require_once BB_LOCATION_FINDER_DIR . 'includes/map-functions.php';
+        require_once BB_LOCATION_FINDER_DIR . 'includes/init-shortcodes.php';
     }
     
     /**
