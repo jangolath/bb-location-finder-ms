@@ -181,6 +181,52 @@ class BB_Location_Shortcodes {
             $output .= '</script>';
         }
         
+        $output .= '<script>
+            console.log("Location search shortcode loaded");
+            jQuery(document).ready(function($) {
+                console.log("Document ready in search shortcode");
+                // Set up search form submission handler
+                $("#bb-location-search-form").on("submit", function(e) {
+                    console.log("Search form submitted via direct handler");
+                });
+            });
+            </script>';
+        
+        if (current_user_can('administrator')) {
+            $output .= '<div style="margin-top: 30px; padding: 15px; border: 1px solid #ccc; background: #f8f8f8;">
+                <h3>Admin Debug Panel</h3>
+                <button id="check-search-ajax" class="button">Test AJAX Call</button>
+                <div id="ajax-result" style="margin-top: 10px; padding: 10px; background: #fff; border: 1px solid #ddd;"></div>
+                <script>
+                    jQuery(document).ready(function($) {
+                        $("#check-search-ajax").on("click", function() {
+                            var $result = $("#ajax-result");
+                            $result.html("Testing AJAX call...");
+                            
+                            $.ajax({
+                                url: bbLocationFinderVars.ajaxurl,
+                                type: "POST",
+                                data: {
+                                    action: "bb_location_search",
+                                    nonce: "' . wp_create_nonce('bb_location_search_nonce') . '",
+                                    location: "Kansas City, MO",
+                                    radius: 50,
+                                    unit: "mi"
+                                },
+                                success: function(response) {
+                                    $result.html("<p>AJAX Success:</p><pre>" + JSON.stringify(response, null, 2) + "</pre>");
+                                },
+                                error: function(xhr, status, error) {
+                                    $result.html("<p>AJAX Error:</p><p>" + error + "</p>");
+                                    console.error(xhr.responseText);
+                                }
+                            });
+                        });
+                    });
+                </script>
+            </div>';
+        }
+
         return $output;
     }
     
