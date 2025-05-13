@@ -3,10 +3,16 @@
 
 class BB_Location_Shortcodes {
     
-    public function __construct() {        
-        // Add AJAX handlers
+    public function __construct() {
+        // Remove the automatic registration to avoid conflicts
+        // Only keep AJAX handlers
         add_action('wp_ajax_bb_location_update', array($this, 'ajax_update_location'));
         add_action('wp_ajax_nopriv_bb_location_update', array($this, 'ajax_update_location_unauthorized'));
+        
+        // Add debug info for admins
+        if (current_user_can('administrator') && function_exists('bb_location_debug_log')) {
+            bb_location_debug_log('BB_Location_Shortcodes class instantiated');
+        }
     }
     
     /**
@@ -19,7 +25,7 @@ class BB_Location_Shortcodes {
     }
     
     /**
-     * Location setter shortcode - completely rewritten for reliability
+     * Location setter shortcode
      */
     public function location_setter_shortcode($atts) {
         // Parse attributes
@@ -87,7 +93,7 @@ class BB_Location_Shortcodes {
         if ($atts['redirect']) {
             $output .= '<input type="hidden" name="redirect" value="' . esc_url($atts['redirect']) . '" />';
         }
-        
+
         $output .= '</form>';
         $output .= '<div id="bb-location-message" style="display: none;"></div>';
         $output .= '</div>';
@@ -96,7 +102,7 @@ class BB_Location_Shortcodes {
     }
     
     /**
-     * Location search shortcode - completely rewritten for reliability
+     * Location search shortcode
      */
     public function location_search_shortcode($atts) {
         // Parse attributes
@@ -220,9 +226,13 @@ class BB_Location_Shortcodes {
             update_user_meta($user_id, 'bb_location_lat', $lat);
             update_user_meta($user_id, 'bb_location_lng', $lng);
         } else {
-            // Geocode the address
-            $geocoder = new BB_Location_Geocoding();
-            $geocoder->geocode_user_location($user_id);
+            // Geocode the address if geocoding class exists
+            if (class_exists('BB_Location_Geocoding')) {
+                $geocoder = new BB_Location_Geocoding();
+                $geocoder->geocode_user_location($user_id);
+            } else if (function_exists('bb_location_debug_log')) {
+                bb_location_debug_log('BB_Location_Geocoding class not found for geocoding');
+            }
         }
         
         // Send success response
@@ -232,7 +242,3 @@ class BB_Location_Shortcodes {
         ));
     }
 }
-
-// Initialize shortcodes - this line is critical!
-// Edit Do not instantiate here - let the main plugin file handle it
-//$bb_location_shortcodes = new BB_Location_Shortcodes();

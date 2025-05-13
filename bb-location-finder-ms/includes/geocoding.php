@@ -9,20 +9,20 @@ class BB_Location_Geocoding {
         // Get API key from options - check network options first on multisite
         if (is_multisite()) {
             $this->api_key = get_site_option('bb_location_google_api_key', '');
-
-             // Add debug for admins
-            if (current_user_can('administrator')) {
-                error_log('Network API Key: ' . $this->api_key);
+            
+            // Debug for admins
+            if (current_user_can('administrator') && function_exists('bb_location_debug_log')) {
+                bb_location_debug_log('Network API Key: ' . substr($this->api_key, 0, 5) . '...');
             }
         }
         
         // If not set at network level or not multisite, get from site options
         if (empty($this->api_key)) {
             $this->api_key = get_option('bb_location_google_api_key', '');
-
-            // Add debug for admins
-            if (current_user_can('administrator')) {
-                error_log('Site API Key: ' . $this->api_key);
+            
+            // Debug for admins
+            if (current_user_can('administrator') && function_exists('bb_location_debug_log')) {
+                bb_location_debug_log('Site API Key: ' . substr($this->api_key, 0, 5) . '...');
             }
         }
     }
@@ -57,6 +57,9 @@ class BB_Location_Geocoding {
     public function geocode_address($address) {
         // Skip if no API key
         if (empty($this->api_key)) {
+            if (function_exists('bb_location_debug_log')) {
+                bb_location_debug_log('Geocoding failed: No API key');
+            }
             return false;
         }
         
@@ -70,6 +73,9 @@ class BB_Location_Geocoding {
         $response = wp_remote_get($url);
         
         if (is_wp_error($response)) {
+            if (function_exists('bb_location_debug_log')) {
+                bb_location_debug_log('Geocoding error: ' . $response->get_error_message());
+            }
             return false;
         }
         
@@ -77,6 +83,9 @@ class BB_Location_Geocoding {
         
         // Check if the request was successful
         if (!isset($data['status']) || $data['status'] !== 'OK') {
+            if (function_exists('bb_location_debug_log')) {
+                bb_location_debug_log('Geocoding API error: ' . (isset($data['status']) ? $data['status'] : 'Unknown'));
+            }
             return false;
         }
         

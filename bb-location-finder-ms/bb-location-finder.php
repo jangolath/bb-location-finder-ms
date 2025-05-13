@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BuddyBoss Location Finder
  * Description: Allows BuddyBoss users to set their location and search for other members by proximity
- * Version: 1.0.7
+ * Version: 1.0.8
  * Author: Jason Wood
  * Text Domain: bb-location-finder
  * Domain Path: /languages
@@ -14,6 +14,13 @@
 // Prevent direct access
 if (!defined('ABSPATH')) exit;
 
+// Debug logging function
+function bb_location_debug_log($message) {
+    if (current_user_can('administrator') && defined('WP_DEBUG') && WP_DEBUG) {
+        error_log('BB Location Finder Debug: ' . $message);
+    }
+}
+
 /**
  * Main Plugin Class
  */
@@ -22,7 +29,7 @@ class BB_Location_Finder {
     /**
      * Plugin version
      */
-    const VERSION = '1.0.7';
+    const VERSION = '1.0.8';
     
     /**
      * Singleton instance
@@ -45,7 +52,7 @@ class BB_Location_Finder {
     private function __construct() {
         // Define constants
         $this->define_constants();
-
+        
         // Debug shortcodes
         $this->debug_shortcodes();
         
@@ -56,6 +63,23 @@ class BB_Location_Finder {
         
         // Initialize hooks
         $this->init_hooks();
+    }
+    
+    /**
+     * Debug shortcodes
+     */
+    public function debug_shortcodes() {
+        // Only for admins
+        if (!current_user_can('administrator')) {
+            return;
+        }
+        
+        add_action('wp_footer', function() {
+            echo '<!-- BB Location Finder Debug: ';
+            echo 'bb_location_setter exists: ' . (shortcode_exists('bb_location_setter') ? 'Yes' : 'No') . ', ';
+            echo 'bb_location_search exists: ' . (shortcode_exists('bb_location_search') ? 'Yes' : 'No');
+            echo ' -->';
+        });
     }
     
     /**
@@ -90,20 +114,6 @@ class BB_Location_Finder {
         </div>
         <?php
     }
-
-    public function debug_shortcodes() {
-    // Only for admins
-    if (!current_user_can('administrator')) {
-        return;
-    }
-    
-    add_action('wp_footer', function() {
-        echo '<!-- BB Location Finder Debug: ';
-        echo 'bb_location_setter exists: ' . (shortcode_exists('bb_location_setter') ? 'Yes' : 'No') . ', ';
-        echo 'bb_location_search exists: ' . (shortcode_exists('bb_location_search') ? 'Yes' : 'No');
-        echo ' -->';
-    });
-}
     
     /**
      * Initialize hooks
@@ -116,7 +126,7 @@ class BB_Location_Finder {
         add_action('wp_enqueue_scripts', array($this, 'register_assets'));
         
         // Initialize components
-        add_action('plugins_loaded', array($this, 'init_components'));
+        add_action('plugins_loaded', array($this, 'init_components'), 20);
         
         // Add admin menu and settings pages
         add_action('admin_menu', array($this, 'add_admin_menu'));
@@ -262,11 +272,21 @@ class BB_Location_Finder {
         $api_key = '';
         if (is_multisite()) {
             $api_key = get_site_option('bb_location_google_api_key', '');
+            
+            // Debug for admins
+            if (current_user_can('administrator')) {
+                bb_location_debug_log('Network API Key: ' . $api_key);
+            }
         }
         
         // If not set at network level or not a multisite, check local site options
         if (empty($api_key)) {
             $api_key = get_option('bb_location_google_api_key', '');
+            
+            // Debug for admins
+            if (current_user_can('administrator')) {
+                bb_location_debug_log('Site API Key: ' . $api_key);
+            }
         }
         
         if (!empty($api_key)) {
@@ -295,35 +315,75 @@ class BB_Location_Finder {
         ));
     }
     
-/**
- * Initialize components
- */
-public function init_components() {
-    // Include required files
-    $this->include_files();
-    
-    // Initialize main components 
-    new BB_Location_Profile_Fields();
-    new BB_Location_Search();
-    new BB_Location_Map();
-    new BB_Location_Geocoding();
-    
-    // Initialize shortcodes directly here
-    $shortcodes = new BB_Location_Shortcodes();
-    
-    // Register shortcodes directly
-    add_shortcode('bb_location_setter', array($shortcodes, 'location_setter_shortcode'));
-    add_shortcode('bb_location_search', array($shortcodes, 'location_search_shortcode'));
-}
+    /**
+     * Initialize components
+     */
+    public function init_components() {
+        bb_location_debug_log('Starting to initialize components');
+        
+        // Include required files
+        $this->include_files();
+        
+        bb_location_debug_log('Files included, registering components');
+        
+        // Initialize profile fields
+        new BB_Location_Profile_Fields();
+        
+        // Initialize search functionality
+        new BB_Location_Search();
+        
+        // Initialize map functionality
+        new BB_Location_Map();
+        
+        // Initialize geocoding
+        require_once BB_LOCATION_FINDER_DIR . 'includes/geocoding.php';
+        $geocoding = new BB_Location_Geocoding();
+        
+        // Initialize and register shortcodes directly
+        bb_location_debug_log('About to register shortcodes');
+        
+        // Check if shortcodes class exists
+        if (!class_exists('BB_Location_Shortcodes')) {
+            bb_location_debug_log('BB_Location_Shortcodes class not found');
+            return;
+        }
+        
+        // Create shortcodes instance
+        global $bb_location_shortcodes;
+        $bb_location_shortcodes = new BB_Location_Shortcodes();
+        
+        // Register shortcodes directly, no dependencies on actions
+        add_shortcode('bb_location_setter', array($bb_location_shortcodes, 'location_setter_shortcode'));
+        add_shortcode('bb_location_search', array($bb_location_shortcodes, 'location_search_shortcode'));
+        
+        bb_location_debug_log('Shortcodes registered directly in init_components');
+    }
     
     /**
      * Include required files
      */
     private function include_files() {
-        require_once BB_LOCATION_FINDER_DIR . 'includes/profile-fields.php';
-        require_once BB_LOCATION_FINDER_DIR . 'includes/search-functions.php';
-        require_once BB_LOCATION_FINDER_DIR . 'includes/shortcodes.php';
-        require_once BB_LOCATION_FINDER_DIR . 'includes/map-functions.php';
+        bb_location_debug_log('Starting to include files');
+        
+        // Check if files exist before including
+        $files = array(
+            'profile-fields.php',
+            'search-functions.php',
+            'shortcodes.php',
+            'map-functions.php'
+        );
+        
+        foreach ($files as $file) {
+            $path = BB_LOCATION_FINDER_DIR . 'includes/' . $file;
+            if (file_exists($path)) {
+                require_once $path;
+                bb_location_debug_log("Successfully included: {$file}");
+            } else {
+                bb_location_debug_log("Failed to include: {$file} - file not found at {$path}");
+            }
+        }
+        
+        bb_location_debug_log('Finished including files');
     }
     
     /**
@@ -517,36 +577,86 @@ public function init_components() {
         */
     }
 
-    // Add this near the end of your main plugin file before the closing class bracket
-public function add_shortcode_tester() {
-    // Only add for administrators
-    if (!current_user_can('administrator')) {
-        return;
+    /**
+     * Add shortcode tester
+     */
+    public function add_shortcode_tester() {
+        // Only add for administrators
+        if (!current_user_can('administrator')) {
+            return;
+        }
+        
+        add_shortcode('bb_location_test', function() {
+            return '<div style="border: 2px solid green; padding: 10px; margin: 10px 0; background: #f0f8f0;">
+                <h3>BB Location Finder Shortcode Test</h3>
+                <p>If you can see this message, WordPress shortcode processing is working correctly.</p>
+                <p>Debug Info:</p>
+                <ul>
+                    <li>Plugin Version: ' . BB_LOCATION_FINDER_VERSION . '</li>
+                    <li>bb_location_setter shortcode registered: ' . (shortcode_exists('bb_location_setter') ? 'Yes' : 'No') . '</li>
+                    <li>bb_location_search shortcode registered: ' . (shortcode_exists('bb_location_search') ? 'Yes' : 'No') . '</li>
+                    <li>Google Maps API Key set: ' . (empty(get_site_option('bb_location_google_api_key')) ? 'No' : 'Yes') . '</li>
+                </ul>
+            </div>';
+        });
     }
-    
-    add_shortcode('bb_location_test', function() {
-        return '<div style="border: 2px solid green; padding: 10px; margin: 10px 0; background: #f0f8f0;">
-            <h3>BB Location Finder Shortcode Test</h3>
-            <p>If you can see this message, WordPress shortcode processing is working correctly.</p>
-            <p>Debug Info:</p>
-            <ul>
-                <li>Plugin Version: ' . BB_LOCATION_FINDER_VERSION . '</li>
-                <li>bb_location_setter shortcode registered: ' . (shortcode_exists('bb_location_setter') ? 'Yes' : 'No') . '</li>
-                <li>bb_location_search shortcode registered: ' . (shortcode_exists('bb_location_search') ? 'Yes' : 'No') . '</li>
-                <li>Google Maps API Key set: ' . (empty(get_site_option('bb_location_google_api_key')) ? 'No' : 'Yes') . '</li>
-            </ul>
-        </div>';
-    });
 }
+
+// Add additional debug shortcode
+function bb_location_debug_shortcode($atts, $content = null) {
+    return '<div style="background: #f0f8ff; padding: 10px; border: 1px solid #0073aa;">
+        <p><strong>BB Location Debug Info:</strong></p>
+        <ul>
+            <li>setter shortcode exists: ' . (shortcode_exists('bb_location_setter') ? 'Yes' : 'No') . '</li>
+            <li>search shortcode exists: ' . (shortcode_exists('bb_location_search') ? 'Yes' : 'No') . '</li>
+            <li>test shortcode exists: ' . (shortcode_exists('bb_location_test') ? 'Yes' : 'No') . '</li>
+            <li>Current filter priority: ' . current_filter() . '</li>
+            <li>Shortcodes global active: ' . (isset($GLOBALS['shortcode_tags']) ? 'Yes' : 'No') . '</li>
+        </ul>
+    </div>';
 }
+add_shortcode('bb_location_debug', 'bb_location_debug_shortcode');
+
+// Force shortcode registration as early as possible
+function bb_location_finder_force_shortcodes() {
+    // Only add this code if shortcodes don't already exist
+    if (!shortcode_exists('bb_location_setter') || !shortcode_exists('bb_location_search')) {
+        // Include shortcodes class if it hasn't been loaded yet
+        if (!class_exists('BB_Location_Shortcodes')) {
+            $path = plugin_dir_path(__FILE__) . 'includes/shortcodes.php';
+            if (file_exists($path)) {
+                require_once $path;
+                bb_location_debug_log("Force-loaded shortcodes.php");
+            } else {
+                bb_location_debug_log("Failed to force-load shortcodes.php - file not found");
+                return;
+            }
+        }
+        
+        // Create shortcodes instance
+        $shortcodes = new BB_Location_Shortcodes();
+        
+        // Register the shortcodes
+        add_shortcode('bb_location_setter', array($shortcodes, 'location_setter_shortcode'));
+        add_shortcode('bb_location_search', array($shortcodes, 'location_search_shortcode'));
+        
+        bb_location_debug_log('Force-registered shortcodes');
+    }
+}
+
+// Call this function at 'init' with high priority
+add_action('init', 'bb_location_finder_force_shortcodes', 1);
 
 // Initialize the plugin
 function bb_location_finder_init() {
-    return BB_Location_Finder::get_instance();
+    bb_location_debug_log('Plugin initialization started');
+    $instance = BB_Location_Finder::get_instance();
+    bb_location_debug_log('Plugin instance created');
+    return $instance;
 }
 
-// Start the plugin
-add_action('plugins_loaded', 'bb_location_finder_init');
+// Start the plugin with high priority
+add_action('plugins_loaded', 'bb_location_finder_init', 5);
 
 // Register activation, deactivation, and uninstall hooks
 register_activation_hook(__FILE__, array('BB_Location_Finder', 'activate'));
