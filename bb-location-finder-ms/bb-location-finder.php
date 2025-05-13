@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BuddyBoss Location Finder
  * Description: Allows BuddyBoss users to set their location and search for other members by proximity
- * Version: 1.0.6
+ * Version: 1.0.7
  * Author: Jason Wood
  * Text Domain: bb-location-finder
  * Domain Path: /languages
@@ -22,7 +22,7 @@ class BB_Location_Finder {
     /**
      * Plugin version
      */
-    const VERSION = '1.0.6';
+    const VERSION = '1.0.7';
     
     /**
      * Singleton instance
@@ -45,6 +45,9 @@ class BB_Location_Finder {
     private function __construct() {
         // Define constants
         $this->define_constants();
+
+        // Debug shortcodes
+        $this->debug_shortcodes();
         
         // Check dependencies
         if (!$this->check_dependencies()) {
@@ -87,6 +90,20 @@ class BB_Location_Finder {
         </div>
         <?php
     }
+
+    public function debug_shortcodes() {
+    // Only for admins
+    if (!current_user_can('administrator')) {
+        return;
+    }
+    
+    add_action('wp_footer', function() {
+        echo '<!-- BB Location Finder Debug: ';
+        echo 'bb_location_setter exists: ' . (shortcode_exists('bb_location_setter') ? 'Yes' : 'No') . ', ';
+        echo 'bb_location_search exists: ' . (shortcode_exists('bb_location_search') ? 'Yes' : 'No');
+        echo ' -->';
+    });
+}
     
     /**
      * Initialize hooks
@@ -285,32 +302,18 @@ public function init_components() {
     // Include required files
     $this->include_files();
     
-    // Initialize components
+    // Initialize main components 
     new BB_Location_Profile_Fields();
     new BB_Location_Search();
     new BB_Location_Map();
-    
-    // Initialize with updated geocoding class
-    require_once BB_LOCATION_FINDER_DIR . 'includes/geocoding.php';
     new BB_Location_Geocoding();
     
-    // Initialize shortcodes - done differently to ensure proper registration
-    $this->init_shortcodes();
-}
-
-/**
- * Initialize shortcodes
- */
-public function init_shortcodes() {
-    // For early registration, directly call register_shortcodes
+    // Initialize shortcodes directly here
     $shortcodes = new BB_Location_Shortcodes();
     
-    // Force-register shortcodes immediately
+    // Register shortcodes directly
     add_shortcode('bb_location_setter', array($shortcodes, 'location_setter_shortcode'));
     add_shortcode('bb_location_search', array($shortcodes, 'location_search_shortcode'));
-    
-    // Store for later use
-    $this->shortcodes = $shortcodes;
 }
     
     /**
@@ -321,7 +324,6 @@ public function init_shortcodes() {
         require_once BB_LOCATION_FINDER_DIR . 'includes/search-functions.php';
         require_once BB_LOCATION_FINDER_DIR . 'includes/shortcodes.php';
         require_once BB_LOCATION_FINDER_DIR . 'includes/map-functions.php';
-        require_once BB_LOCATION_FINDER_DIR . 'includes/init-shortcodes.php';
     }
     
     /**

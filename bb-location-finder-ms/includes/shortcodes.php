@@ -3,21 +3,10 @@
 
 class BB_Location_Shortcodes {
     
-    public function __construct() {
-        // Register shortcodes using add_action to ensure they're registered at the right time
-        add_action('init', array($this, 'register_shortcodes'));
-        
+    public function __construct() {        
         // Add AJAX handlers
         add_action('wp_ajax_bb_location_update', array($this, 'ajax_update_location'));
         add_action('wp_ajax_nopriv_bb_location_update', array($this, 'ajax_update_location_unauthorized'));
-    }
-    
-    /**
-     * Register the shortcodes
-     */
-    public function register_shortcodes() {
-        add_shortcode('bb_location_setter', array($this, 'location_setter_shortcode'));
-        add_shortcode('bb_location_search', array($this, 'location_search_shortcode'));
     }
     
     /**

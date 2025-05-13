@@ -9,11 +9,21 @@ class BB_Location_Geocoding {
         // Get API key from options - check network options first on multisite
         if (is_multisite()) {
             $this->api_key = get_site_option('bb_location_google_api_key', '');
+
+             // Add debug for admins
+            if (current_user_can('administrator')) {
+                error_log('Network API Key: ' . $this->api_key);
+            }
         }
         
         // If not set at network level or not multisite, get from site options
         if (empty($this->api_key)) {
             $this->api_key = get_option('bb_location_google_api_key', '');
+
+            // Add debug for admins
+            if (current_user_can('administrator')) {
+                error_log('Site API Key: ' . $this->api_key);
+            }
         }
     }
     
