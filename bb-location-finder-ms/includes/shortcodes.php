@@ -227,6 +227,33 @@ class BB_Location_Shortcodes {
             </div>';
         }
 
+        // TODO remove after fixing this forces the geocoding test method to run
+        if (current_user_can('administrator')) {
+            $output .= do_shortcode('[bb_location_geocoding_test]');
+        }
+
+        // Add at the end of the location_search_shortcode method, before returning $output: TODO remove after verifying fix
+        if (current_user_can('administrator')) {
+            $output .= '<div style="margin-top: 20px; padding: 15px; border: 1px solid #ccc; background: #f8f8f8;">
+                <h3>Google Maps Script Check</h3>
+                <div id="maps-script-status">Checking Google Maps script...</div>
+                <script>
+                    jQuery(document).ready(function($) {
+                        var $status = $("#maps-script-status");
+                        if (typeof google !== "undefined") {
+                            if (typeof google.maps !== "undefined") {
+                                $status.html("<span style=\"color: green;\">✓ Google Maps script is loaded correctly</span>");
+                            } else {
+                                $status.html("<span style=\"color: red;\">✗ Google object exists but maps is undefined</span>");
+                            }
+                        } else {
+                            $status.html("<span style=\"color: red;\">✗ Google Maps script is not loaded</span>");
+                        }
+                    });
+                </script>
+            </div>';
+        }
+
         return $output;
     }
     

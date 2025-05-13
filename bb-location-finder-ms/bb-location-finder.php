@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BuddyBoss Location Finder
  * Description: Allows BuddyBoss users to set their location and search for other members by proximity
- * Version: 1.0.9
+ * Version: 1.0.10
  * Author: Jason Wood
  * Text Domain: bb-location-finder
  * Domain Path: /languages
@@ -29,7 +29,7 @@ class BB_Location_Finder {
     /**
      * Plugin version
      */
-    const VERSION = '1.0.9';
+    const VERSION = '1.0.10';
     
     /**
      * Singleton instance
@@ -283,6 +283,12 @@ class BB_Location_Finder {
         if (empty($api_key)) {
             $api_key = get_option('bb_location_google_api_key', '');
             
+            // If we have an admin, log the key (masked for security)
+            if (current_user_can('administrator') && function_exists('bb_location_debug_log')) {
+                $masked_key = empty($api_key) ? 'EMPTY' : substr($api_key, 0, 4) . '...' . substr($api_key, -4);
+                bb_location_debug_log('Using Google Maps API key: ' . $masked_key);
+            }
+
             // Debug for admins
             if (current_user_can('administrator')) {
                 bb_location_debug_log('Site API Key: ' . $api_key);
@@ -643,6 +649,99 @@ function bb_location_finder_force_shortcodes() {
         bb_location_debug_log('Force-registered shortcodes');
     }
 }
+
+// Add geocoding test shortcode
+add_shortcode('bb_location_geocoding_test', function() {
+    if (!current_user_can('administrator')) {
+        return '';
+    }
+    
+    ob_start();
+    ?>
+    <div style="padding: 15px; border: 1px solid #ccc; background: #f8f8f8; margin: 20px 0;">
+        <h3>Geocoding Test</h3>
+        <form id="geocoding-test-form">
+            <input type="text" id="test-address" placeholder="Enter an address to geocode" style="width: 300px;" value="Kansas City, MO">
+            <button type="submit" class="button">Test Geocoding</button>
+        </form>
+        <div id="geocoding-result" style="margin-top: 10px; padding: 10px; background: #fff; border: 1px solid #ddd;"></div>
+        
+        <script>
+        jQuery(document).ready(function($) {
+            $('#geocoding-test-form').on('submit', function(e) {
+                e.preventDefault();
+                var address = $('#test-address').val();
+                var $result = $('#geocoding-result');
+                
+                $result.html('Testing geocoding for: ' + address + '...');
+                
+                $.ajax({
+                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    type: 'POST',
+                    data: {
+                        action: 'bb_test_geocoding',
+                        nonce: '<?php echo wp_create_nonce('bb_test_geocoding_nonce'); ?>',
+                        address: address
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $result.html('<p>Success!</p><pre>' + JSON.stringify(response.data, null, 2) + '</pre>');
+                        } else {
+                            $result.html('<p>Error:</p><pre>' + JSON.stringify(response.data, null, 2) + '</pre>');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $result.html('<p>AJAX Error:</p><p>' + error + '</p>');
+                        console.error(xhr.responseText);
+                    }
+                });
+            });
+        });
+        </script>
+    </div>
+    <?php
+    return ob_get_clean();
+});
+
+// Add AJAX handler for geocoding test
+add_action('wp_ajax_bb_test_geocoding', function() {
+    check_ajax_referer('bb_test_geocoding_nonce', 'nonce');
+    
+    $address = isset($_POST['address']) ? sanitize_text_field($_POST['address']) : '';
+    
+    if (empty($address)) {
+        wp_send_json_error(['message' => 'No address provided']);
+    }
+    
+    // Try to load geocoding class if not already loaded
+    if (!class_exists('BB_Location_Geocoding')) {
+        $file = plugin_dir_path(__FILE__) . 'includes/geocoding.php';
+        if (file_exists($file)) {
+            require_once $file;
+        } else {
+            wp_send_json_error(['message' => 'Geocoding class file not found']);
+        }
+    }
+    
+    // Create geocoder instance
+    $geocoder = new BB_Location_Geocoding();
+    
+    // Get coordinates
+    $coordinates = $geocoder->geocode_address($address);
+    
+    if ($coordinates) {
+        wp_send_json_success([
+            'address' => $address,
+            'coordinates' => $coordinates,
+            'map_url' => 'https://www.google.com/maps?q=' . $coordinates['lat'] . ',' . $coordinates['lng']
+        ]);
+    } else {
+        wp_send_json_error([
+            'message' => 'Geocoding failed',
+            'address' => $address
+        ]);
+    }
+});
 
 // Call this function at 'init' with high priority
 add_action('init', 'bb_location_finder_force_shortcodes', 1);
