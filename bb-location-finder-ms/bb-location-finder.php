@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BuddyBoss Location Finder
  * Description: Allows BuddyBoss users to set their location and search for other members by proximity
- * Version: 1.0.12
+ * Version: 1.0.13
  * Author: Jason Wood
  * Text Domain: bb-location-finder
  * Domain Path: /languages
@@ -22,7 +22,7 @@ class BB_Location_Finder {
     /**
      * Plugin version
      */
-    const VERSION = '1.0.12';
+    const VERSION = '1.0.13';
     
     /**
      * Singleton instance
@@ -264,10 +264,12 @@ class BB_Location_Finder {
             );
         }
         
-        // Localize script
+        // Localize script with more debugging info
         wp_localize_script('bb-location-finder-js', 'bbLocationFinderVars', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('bb-location-finder-nonce'),
+            'apiKey' => $api_key, // Add the API key here
+            'siteUrl' => site_url(),
             'strings' => array(
                 'search_error' => __('Error searching for members. Please try again.', 'bb-location-finder'),
                 'no_results' => __('No members found in this area.', 'bb-location-finder'),

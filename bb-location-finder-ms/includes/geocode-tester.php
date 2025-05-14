@@ -25,20 +25,20 @@ class BB_Location_Geocode_Tester {
         wp_enqueue_style('bb-location-finder-styles');
         wp_enqueue_script('jquery');
         
-        // Add inline script
-        wp_add_inline_script('jquery', '
+        // Add inline script with jQuery dependency
+        $script = '
             jQuery(document).ready(function($) {
                 $("#bb-geocode-test-form").on("submit", function(e) {
-                    e.preventDefault();
+                    e.preventDefault(); // This prevents the form from submitting traditionally
                     
                     var location = $("#bb-geocode-test-location").val();
                     var $results = $("#bb-geocode-test-results");
                     
                     $results.html("<p>Testing geocoding for: " + location + "</p>");
-                    $results.append("<p>Loading...</p>");
+                    $results.append("<p class=\"loading\">Loading...</p>");
                     
                     $.ajax({
-                        url: ajaxurl,
+                        url: "' . admin_url('admin-ajax.php') . '",
                         type: "POST",
                         data: {
                             action: "bb_test_geocode",
@@ -68,20 +68,24 @@ class BB_Location_Geocode_Tester {
                                 $results.html(html);
                             }
                         },
-                        error: function() {
-                            $results.html("<div class=\"geocode-error\"><h3>AJAX Error</h3><p>Could not connect to the server.</p></div>");
+                        error: function(xhr, status, error) {
+                            $results.html("<div class=\"geocode-error\"><h3>AJAX Error</h3><p>Could not connect to the server. Status: " + status + ", Error: " + error + "</p></div>");
                         }
                     });
+                    
+                    return false; // Extra safeguard against form submission
                 });
             });
-        ');
+        ';
+        
+        wp_add_inline_script('jquery', $script);
         
         // Create output
         $output = '<div class="bb-geocode-tester">';
         $output .= '<h2>' . __('Geocoding Test Tool', 'bb-location-finder') . '</h2>';
         $output .= '<p>' . __('Use this tool to test if a location can be geocoded by the plugin.', 'bb-location-finder') . '</p>';
         
-        $output .= '<form id="bb-geocode-test-form">';
+        $output .= '<form id="bb-geocode-test-form" method="post">';
         $output .= wp_nonce_field('bb_geocode_test_nonce', 'bb_geocode_test_nonce', true, false);
         
         $output .= '<div class="form-field">';
@@ -130,6 +134,12 @@ class BB_Location_Geocode_Tester {
                 overflow: auto;
                 max-height: 300px;
                 border: 1px solid #ddd;
+            }
+            .loading {
+                display: block;
+                padding: 10px;
+                text-align: center;
+                font-style: italic;
             }
         </style>';
         
@@ -251,7 +261,9 @@ class BB_Location_Debug_Geocoding extends BB_Location_Geocoding {
                     'message' => __('wp_remote_get failed: ', 'bb-location-finder') . $response->get_error_message(),
                     'debug' => array(
                         'error_code' => $response->get_error_code(),
-                        'error_data' => $response->get_error_data()
+                        'error_data' => $response->get_error_data(),
+                        'api_key_length' => strlen($this->api_key), // Just shows length for security
+                        'url_without_key' => "https://maps.googleapis.com/maps/api/geocode/json?address={$address}&key=YOUR_API_KEY"
                     )
                 )
             );
@@ -265,11 +277,14 @@ class BB_Location_Debug_Geocoding extends BB_Location_Geocoding {
             return array(
                 'success' => false,
                 'data' => array(
-                    'message' => __('Google Geocoding API returned error: ', 'bb-location-finder') . (isset($data['status']) ? $data['status'] : 'Unknown'),
+                    'message' => __('Google Geocoding API returned error: ', 'bb-location-finder') . (isset($data['status']) ? $data['status'] : 'Unknown') . 
+                                (isset($data['error_message']) ? ' - ' . $data['error_message'] : ''),
                     'debug' => array(
                         'response_code' => wp_remote_retrieve_response_code($response),
                         'response_message' => wp_remote_retrieve_response_message($response),
-                        'api_response' => $data
+                        'api_response' => $data,
+                        'api_key_length' => strlen($this->api_key), // Just shows length for security
+                        'url_without_key' => "https://maps.googleapis.com/maps/api/geocode/json?address={$address}&key=YOUR_API_KEY"
                     )
                 )
             );
