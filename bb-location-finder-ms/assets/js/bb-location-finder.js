@@ -104,6 +104,45 @@
     // Initialize on document ready
     $(document).ready(function() {
         bbLogDebug('Document ready');
+    
+        // Check Google Maps API status with more detailed logging
+        if (typeof google === 'undefined') {
+            bbLogDebug('Google is not defined - will try to load dynamically');
+            
+            // If API key is available, try to load Google Maps dynamically
+            if (bbLocationFinderVars.apiKey) {
+                bbLogDebug('Loading Google Maps API dynamically with key length: ' + bbLocationFinderVars.apiKey.length);
+                
+                var script = document.createElement('script');
+                script.src = 'https://maps.googleapis.com/maps/api/js?key=' + bbLocationFinderVars.apiKey + '&libraries=places&callback=initAutocompleteCallback';
+                script.async = true;
+                script.defer = true;
+                script.onerror = function() {
+                    bbLogDebug('Failed to load Google Maps API script');
+                    console.error('Failed to load Google Maps API script');
+                };
+                
+                // Define global callback
+                window.initAutocompleteCallback = function() {
+                    bbLogDebug('Google Maps loaded via callback');
+                    initAutocomplete();
+                };
+                
+                document.body.appendChild(script);
+            } else {
+                bbLogDebug('No API key available - cannot load Google Maps');
+                console.error('No Google Maps API key provided');
+            }
+        } else if (typeof google.maps === 'undefined') {
+            bbLogDebug('Google is defined but maps is not');
+            console.error('Google object exists but maps property is undefined');
+        } else if (typeof google.maps.places === 'undefined') {
+            bbLogDebug('Google maps is defined but places is not');
+            console.error('Google Maps loaded but Places API is not available');
+        } else {
+            bbLogDebug('Google Maps with Places API is loaded, initializing autocomplete');
+            initAutocomplete();
+        }
         
         // Check if API key is available
         bbLogDebug('API Key Length', bbLocationFinderVars.apiKey ? bbLocationFinderVars.apiKey.length : 0);

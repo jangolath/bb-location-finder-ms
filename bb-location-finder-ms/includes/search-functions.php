@@ -65,16 +65,30 @@ class BB_Location_Search {
             wp_send_json_error(array('message' => __('Invalid search parameters', 'bb-location-finder')));
         }
         
+        // Log search request
+        error_log('BB Location Finder - Search request: ' . $location . ', radius: ' . $radius . ' ' . $unit);
+        
         // Geocode the search location
         $geocoder = new BB_Location_Geocoding();
         $coordinates = $geocoder->geocode_address($location);
         
         if (!$coordinates) {
-            wp_send_json_error(array('message' => __('Could not find the location', 'bb-location-finder')));
+            error_log('BB Location Finder - Geocoding failed for location: ' . $location);
+            wp_send_json_error(array(
+                'message' => __('Could not find the location', 'bb-location-finder'),
+                'location' => $location,
+                'api_key_set' => !empty($geocoder->api_key)
+            ));
         }
+        
+        // If we got coordinates, log them
+        error_log('BB Location Finder - Geocoding succeeded for location: ' . $location . ', coordinates: ' . json_encode($coordinates));
         
         // Find users within the radius
         $users = $this->find_users_by_distance($coordinates['lat'], $coordinates['lng'], $radius, $unit);
+        
+        // Log user count
+        error_log('BB Location Finder - Found ' . count($users) . ' users within ' . $radius . ' ' . $unit . ' of ' . $location);
         
         // Format results for response
         $formatted_users = array();

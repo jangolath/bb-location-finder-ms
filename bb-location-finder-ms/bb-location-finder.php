@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BuddyBoss Location Finder
  * Description: Allows BuddyBoss users to set their location and search for other members by proximity, name, and profile type
- * Version: 1.0.15
+ * Version: 1.0.16
  * Author: Jason Wood
  * Text Domain: bb-location-finder
  * Domain Path: /languages
@@ -22,7 +22,7 @@ class BB_Location_Finder {
     /**
      * Plugin version
      */
-    const VERSION = '1.0.15';
+    const VERSION = '1.0.16';
     
     /**
      * Singleton instance
@@ -234,15 +234,6 @@ class BB_Location_Finder {
             BB_LOCATION_FINDER_VERSION
         );
         
-        // Register scripts
-        wp_register_script(
-            'bb-location-finder-js', 
-            BB_LOCATION_FINDER_URL . 'assets/js/bb-location-finder.js', 
-            array('jquery'), 
-            BB_LOCATION_FINDER_VERSION, 
-            true
-        );
-        
         // Get API key for Google Maps - check network options first on multisite
         $api_key = '';
         if (is_multisite()) {
@@ -254,7 +245,9 @@ class BB_Location_Finder {
             $api_key = get_option('bb_location_google_api_key', '');
         }
         
+        // Register scripts - IMPORTANT: Load Maps script before the plugin's script
         if (!empty($api_key)) {
+            // Register Google Maps with Places library
             wp_register_script(
                 'google-maps', 
                 'https://maps.googleapis.com/maps/api/js?key=' . $api_key . '&libraries=places', 
@@ -262,14 +255,28 @@ class BB_Location_Finder {
                 null, 
                 true
             );
+            
+            // Log for debugging
+            error_log('BB Location Finder - Google Maps API script registered with key length: ' . strlen($api_key));
+        } else {
+            error_log('BB Location Finder - No Google Maps API key found');
         }
         
-        // Localize script with more debugging info
+        // Register plugin script with dependency on Google Maps
+        wp_register_script(
+            'bb-location-finder-js', 
+            BB_LOCATION_FINDER_URL . 'assets/js/bb-location-finder.js', 
+            array('jquery', 'google-maps'), 
+            BB_LOCATION_FINDER_VERSION, 
+            true
+        );
+        
+        // Localize script with API key and other variables
         wp_localize_script('bb-location-finder-js', 'bbLocationFinderVars', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('bb-location-finder-nonce'),
-            'apiKey' => $api_key, // Add the API key here
             'siteUrl' => site_url(),
+            'apiKey' => $api_key,
+            'nonce' => wp_create_nonce('bb-location-finder-nonce'),
             'strings' => array(
                 'search_error' => __('Error searching for members. Please try again.', 'bb-location-finder'),
                 'no_results' => __('No members found in this area.', 'bb-location-finder'),
