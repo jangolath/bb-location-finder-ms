@@ -48,6 +48,9 @@ class BB_Location_Search {
         return $results;
     }
     
+    /**
+     * AJAX handler for location search
+     */
     public function ajax_location_search() {
         // Check nonce
         check_ajax_referer('bb_location_search_nonce', 'nonce');
@@ -55,6 +58,8 @@ class BB_Location_Search {
         $location = sanitize_text_field($_POST['location']);
         $radius = floatval($_POST['radius']);
         $unit = sanitize_text_field($_POST['unit']);
+        $show_map = isset($_POST['show_map']) ? sanitize_text_field($_POST['show_map']) : 'yes';
+        $map_height = isset($_POST['map_height']) ? sanitize_text_field($_POST['map_height']) : '400px';
         
         if (empty($location) || $radius <= 0) {
             wp_send_json_error(array('message' => __('Invalid search parameters', 'bb-location-finder')));
@@ -93,7 +98,8 @@ class BB_Location_Search {
                     'html' => false
                 )),
                 'lat' => $user->lat,
-                'lng' => $user->lng
+                'lng' => $user->lng,
+                'unit' => $unit
             );
         }
         
@@ -101,7 +107,9 @@ class BB_Location_Search {
             'users' => $formatted_users,
             'center' => $coordinates,
             'count' => count($formatted_users),
-            'unit' => $unit
+            'unit' => $unit,
+            'show_map' => $show_map,
+            'map_height' => $map_height
         ));
     }
 }

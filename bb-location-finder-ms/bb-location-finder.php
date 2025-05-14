@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BuddyBoss Location Finder
  * Description: Allows BuddyBoss users to set their location and search for other members by proximity
- * Version: 1.0.11
+ * Version: 1.0.12
  * Author: Jason Wood
  * Text Domain: bb-location-finder
  * Domain Path: /languages
@@ -22,7 +22,7 @@ class BB_Location_Finder {
     /**
      * Plugin version
      */
-    const VERSION = '1.0.11';
+    const VERSION = '1.0.12';
     
     /**
      * Singleton instance
@@ -300,6 +300,12 @@ class BB_Location_Finder {
         require_once BB_LOCATION_FINDER_DIR . 'includes/geocoding.php';
         new BB_Location_Geocoding();
         
+        // Initialize geocode tester (admin only)
+        if (current_user_can('administrator')) {
+            require_once BB_LOCATION_FINDER_DIR . 'includes/geocode-tester.php';
+            new BB_Location_Geocode_Tester();
+        }
+        
         // Create shortcodes instance
         global $bb_location_shortcodes;
         $bb_location_shortcodes = new BB_Location_Shortcodes();
@@ -307,6 +313,11 @@ class BB_Location_Finder {
         // Register shortcodes directly
         add_shortcode('bb_location_setter', array($bb_location_shortcodes, 'location_setter_shortcode'));
         add_shortcode('bb_location_search', array($bb_location_shortcodes, 'location_search_shortcode'));
+        
+        // Register admin-only geocode test shortcode
+        if (current_user_can('administrator')) {
+            add_shortcode('bb_location_geocode_test', array(new BB_Location_Geocode_Tester(), 'geocode_test_shortcode'));
+        }
     }
     
     /**

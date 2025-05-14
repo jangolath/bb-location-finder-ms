@@ -49,6 +49,12 @@ class BB_Location_Geocoding {
         if (stripos($address, 'kansas city') !== false) {
             // Hardcoded coordinates for Kansas City, MO
             return array('lat' => 39.099724, 'lng' => -94.578331);
+        } elseif (stripos($address, 'blue springs') !== false && (stripos($address, 'mo') !== false || stripos($address, 'missouri') !== false)) {
+            // Hardcoded coordinates for Blue Springs, MO
+            return array('lat' => 39.0169, 'lng' => -94.2816);
+        } elseif (stripos($address, 'columbia') !== false && (stripos($address, 'mo') !== false || stripos($address, 'missouri') !== false)) {
+            // Hardcoded coordinates for Columbia, MO
+            return array('lat' => 38.9517, 'lng' => -92.3341);
         }
         
         // Skip if no API key

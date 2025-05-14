@@ -261,6 +261,52 @@
             });
         }
     });
+
+    // Override the displaySearchResults function to support show_map option
+    function displaySearchResults(data) {
+        var $results = $('#bb-location-results');
+        var $resultCount = $('<div class="result-count"></div>');
+        
+        // Clear previous results
+        $results.empty();
+        
+        // Add result count
+        var countText = data.count + ' ' + 
+            (data.count === 1 ? bbLocationFinderVars.strings.member : bbLocationFinderVars.strings.members) + 
+            ' ' + bbLocationFinderVars.strings.found;
+        $resultCount.text(countText);
+        $results.append($resultCount);
+
+        // Create result container
+        var $resultContainer = $('<div class="result-container"></div>');
+        $results.append($resultContainer);
+        
+        // Only add map if show_map is yes
+        if (data.show_map === 'yes') {
+            var $map = $('<div id="bb-location-map" style="height: ' + data.map_height + ';"></div>');
+            $resultContainer.append($map);
+            
+            // Initialize map
+            if (typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
+                initMap(data);
+            }
+        }
+        
+        // Add users container
+        var $userResults = $('<div id="bb-location-users" class="user-results"></div>');
+        $resultContainer.append($userResults);
+        
+        // Show no results message if needed
+        if (data.count === 0) {
+            $userResults.html('<div class="no-results">' + bbLocationFinderVars.strings.no_results + '</div>');
+            $('.name-search-container, #bb-location-pagination').hide();
+            return;
+        } else {
+            $('.name-search-container').show();
+        }
+
+        // The rest of the user display is handled by the custom pagination/filtering code in the shortcode
+    }
     
     // Define global function
     window.bbLocationFinder = {
