@@ -97,6 +97,7 @@ class BB_Location_Shortcodes {
             'show_map' => 'yes',
             'map_height' => '400px',
             'results_per_page' => '10',
+            'show_profile_type_filter' => 'yes', // New parameter
         ), $atts);
         
         // Enqueue necessary scripts and styles
@@ -143,13 +144,46 @@ class BB_Location_Shortcodes {
         $output .= '</div>';
         $output .= '</div>';
         
-        // Add name search filter (only visible after results are loaded)
-        $output .= '<div class="name-search-container" style="display:none; margin-top:15px;">';
+        // Add filter container (only visible after results are loaded)
+        $output .= '<div class="filter-container" style="display:none; margin-top:15px;">';
+        
+        // Add name search filter
         $output .= '<div class="form-field">';
         $output .= '<label for="bb_name_search">' . __('Filter by Name', 'bb-location-finder') . '</label>';
         $output .= '<input type="text" id="bb_name_search" name="name_search" placeholder="' . esc_attr__('Enter member name', 'bb-location-finder') . '" />';
         $output .= '</div>';
-        $output .= '</div>';
+        
+        // Add profile type filter (only if enabled)
+        if ($atts['show_profile_type_filter'] === 'yes') {
+            // Get profile types dynamically if BuddyBoss Profile Types are active
+            $profile_types = array();
+            
+            if (function_exists('bp_get_member_types')) {
+                $member_types = bp_get_member_types(array(), 'objects');
+                
+                if (!empty($member_types)) {
+                    foreach ($member_types as $type => $object) {
+                        $profile_types[$type] = $object->labels['singular_name'];
+                    }
+                }
+            }
+            
+            if (!empty($profile_types)) {
+                $output .= '<div class="form-field profile-type-filter">';
+                $output .= '<label for="bb_profile_type_filter">' . __('Filter by Profile Type', 'bb-location-finder') . '</label>';
+                $output .= '<select id="bb_profile_type_filter" name="profile_type">';
+                $output .= '<option value="">' . __('All Profile Types', 'bb-location-finder') . '</option>';
+                
+                foreach ($profile_types as $type => $label) {
+                    $output .= '<option value="' . esc_attr($type) . '">' . esc_html($label) . '</option>';
+                }
+                
+                $output .= '</select>';
+                $output .= '</div>';
+            }
+        }
+        
+        $output .= '</div>'; // End filter container
         
         $output .= '<input type="hidden" name="unit" value="' . esc_attr($atts['unit']) . '" />';
         $output .= '<input type="hidden" name="show_map" value="' . esc_attr($atts['show_map']) . '" />';
@@ -176,232 +210,100 @@ class BB_Location_Shortcodes {
         $output .= '</div>';
         $output .= '</div>';
         
-        // Add inline script to handle pagination and name filtering
+        // Add inline script to handle profile type filtering
         ob_start();
         ?>
         <script type="text/javascript">
         jQuery(document).ready(function($) {
-            var allUsers = [];
-            var filteredUsers = [];
-            var resultsPerPage = <?php echo intval($atts['results_per_page']); ?>;
-            var currentPage = 1;
+            // Handle profile type filter changes
+            $(document).on('change', '#bb_profile_type_filter', function() {
+                var selectedType = $(this).val();
+                
+                if (window.allUsers && window.filteredByName) {
+                    // First filter by name
+                    if ($('#bb_name_search').val().length === 0) {
+                        window.filteredByName = window.allUsers.slice();
+                    } else {
+                        var searchValue = $('#bb_name_search').val().toLowerCase();
+                        window.filteredByName = window.allUsers.filter(function(user) {
+                            return user.name.toLowerCase().indexOf(searchValue) !== -1;
+                        });
+                    }
+                    
+                    // Then filter by profile type
+                    if (selectedType === '') {
+                        window.filteredUsers = window.filteredByName.slice();
+                    } else {
+                        window.filteredUsers = window.filteredByName.filter(function(user) {
+                            return user.profile_type === selectedType;
+                        });
+                    }
+                    
+                    // Reset to first page
+                    window.currentPage = 1;
+                    $('input[name="current_page"]').val(1);
+                    
+                    // Display filtered results
+                    displayUserResults(window.filteredUsers);
+                }
+            });
             
-            // Name search filter
+            // Override name search to work with profile type filter
             $(document).on('input', '#bb_name_search', function() {
                 var searchValue = $(this).val().toLowerCase();
                 
-                if (searchValue.length === 0) {
-                    filteredUsers = allUsers.slice();
-                } else {
-                    filteredUsers = allUsers.filter(function(user) {
-                        return user.name.toLowerCase().indexOf(searchValue) !== -1;
-                    });
-                }
-                
-                // Reset to first page
-                currentPage = 1;
-                $('input[name="current_page"]').val(1);
-                
-                // Display filtered results
-                displayUserResults(filteredUsers);
-            });
-            
-            // Pagination click handler
-            $(document).on('click', '.page-number', function(e) {
-                e.preventDefault();
-                currentPage = parseInt($(this).data('page'));
-                $('input[name="current_page"]').val(currentPage);
-                
-                displayUserResults(filteredUsers);
-                
-                // Scroll to results
-                $('html, body').animate({
-                    scrollTop: $('#bb-location-results').offset().top - 50
-                }, 200);
-            });
-            
-            // Override the global displaySearchResults function
-            window.originalDisplaySearchResults = window.displaySearchResults;
-            
-            window.displaySearchResults = function(data) {
-                var $results = $('#bb-location-results');
-                var $resultCount = $('<div class="result-count"></div>');
-                var $resultContainer = $('<div class="result-container"></div>');
-                
-                // Store all users
-                allUsers = data.users;
-                filteredUsers = data.users.slice();
-                
-                // Clear previous results
-                $results.empty();
-                
-                // Add result count
-                var countText = data.count + ' ' + 
-                    (data.count === 1 ? bbLocationFinderVars.strings.member : bbLocationFinderVars.strings.members) + 
-                    ' ' + bbLocationFinderVars.strings.found;
-                $resultCount.text(countText);
-                $results.append($resultCount);
-                
-                // Show name search if we have results
-                if (data.count > 0) {
-                    $('.name-search-container').show();
-                } else {
-                    $('.name-search-container').hide();
-                }
-                
-                // Create map and user results containers
-                var showMap = $('input[name="show_map"]').val() === 'yes';
-                
-                if (showMap) {
-                    var $map = $('<div id="bb-location-map" style="height: ' + data.map_height + ';"></div>');
-                    $resultContainer.append($map);
-                }
-                
-                var $userResults = $('<div id="bb-location-users" class="user-results"></div>');
-                $resultContainer.append($userResults);
-                $results.append($resultContainer);
-                
-                // Show results and pagination
-                displayUserResults(filteredUsers);
-                
-                // Initialize map if showing
-                if (showMap && typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
-                    initMap(data);
-                }
-            };
-            
-            function displayUserResults(users) {
-                var $userResults = $('#bb-location-users');
-                $userResults.empty();
-                
-                // Show no results message if needed
-                if (users.length === 0) {
-                    $userResults.html('<div class="no-results">' + bbLocationFinderVars.strings.no_results + '</div>');
-                    $('#bb-location-pagination').hide();
-                    return;
-                }
-                
-                // Calculate pagination
-                var totalPages = Math.ceil(users.length / resultsPerPage);
-                var startIndex = (currentPage - 1) * resultsPerPage;
-                var endIndex = Math.min(startIndex + resultsPerPage, users.length);
-                var pageUsers = users.slice(startIndex, endIndex);
-                
-                // Add user results
-                $.each(pageUsers, function(index, user) {
-                    var locationDisplay = user.location.join(', ');
-                    var distanceText = user.distance + ' ' + (user.unit === 'mi' ? 'miles' : 'km') + ' away';
-                    
-                    var $userItem = $('<div class="user-item"></div>').attr('data-id', user.id);
-                    var $avatar = $('<div class="user-avatar"><img src="' + user.avatar + '" alt=""></div>');
-                    var $info = $('<div class="user-info"></div>');
-                    
-                    $info.append('<h4><a href="' + user.profile_url + '">' + user.name + '</a></h4>');
-                    $info.append('<p class="user-location">' + locationDisplay + '</p>');
-                    $info.append('<p class="user-distance">' + distanceText + '</p>');
-                    
-                    $userItem.append($avatar).append($info);
-                    $userResults.append($userItem);
-                });
-                
-                // Update pagination
-                updatePagination(totalPages);
-            }
-            
-            function updatePagination(totalPages) {
-                var $pagination = $('#bb-location-pagination');
-                $pagination.empty();
-                
-                if (totalPages <= 1) {
-                    $pagination.hide();
-                    return;
-                }
-                
-                $pagination.show();
-                
-                // Previous button
-                if (currentPage > 1) {
-                    $pagination.append('<a href="#" class="page-number prev" data-page="' + (currentPage - 1) + '">' + '&laquo; ' + 'Previous' + '</a>');
-                }
-                
-                // Page numbers
-                var startPage = Math.max(1, currentPage - 2);
-                var endPage = Math.min(totalPages, startPage + 4);
-                
-                if (endPage - startPage < 4 && startPage > 1) {
-                    startPage = Math.max(1, endPage - 4);
-                }
-                
-                for (var i = startPage; i <= endPage; i++) {
-                    var $pageLink = $('<a href="#" class="page-number" data-page="' + i + '">' + i + '</a>');
-                    
-                    if (i === currentPage) {
-                        $pageLink.addClass('current');
+                if (window.allUsers) {
+                    // First filter by name
+                    if (searchValue.length === 0) {
+                        window.filteredByName = window.allUsers.slice();
+                    } else {
+                        window.filteredByName = window.allUsers.filter(function(user) {
+                            return user.name.toLowerCase().indexOf(searchValue) !== -1;
+                        });
                     }
                     
-                    $pagination.append($pageLink);
+                    // Then apply profile type filter if selected
+                    var selectedType = $('#bb_profile_type_filter').val();
+                    if (selectedType === '') {
+                        window.filteredUsers = window.filteredByName.slice();
+                    } else {
+                        window.filteredUsers = window.filteredByName.filter(function(user) {
+                            return user.profile_type === selectedType;
+                        });
+                    }
+                    
+                    // Reset to first page
+                    window.currentPage = 1;
+                    $('input[name="current_page"]').val(1);
+                    
+                    // Display filtered results
+                    displayUserResults(window.filteredUsers);
                 }
-                
-                // Next button
-                if (currentPage < totalPages) {
-                    $pagination.append('<a href="#" class="page-number next" data-page="' + (currentPage + 1) + '">' + 'Next' + ' &raquo;</a>');
-                }
-            }
+            });
         });
         </script>
         
         <style>
-        /* Pagination Styles */
-        .location-pagination {
-            margin-top: 20px;
-            text-align: center;
-        }
-        
-        .location-pagination .page-number {
-            display: inline-block;
-            padding: 5px 10px;
-            margin: 0 3px;
-            background: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            text-decoration: none;
-            color: #333;
-        }
-        
-        .location-pagination .page-number.current {
-            background: #007bff;
-            color: white;
-            border-color: #0069d9;
-        }
-        
-        .location-pagination .page-number:hover:not(.current) {
-            background: #e9e9e9;
-        }
-        
-        /* Name Search Styles */
-        .name-search-container {
+        /* Filter Container Styles */
+        .filter-container {
             margin-top: 15px;
-            padding: 10px;
+            padding: 15px;
             background: #f9f9f9;
             border: 1px solid #eee;
             border-radius: 4px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
         }
         
-        @media (min-width: 768px) {
-            .result-container {
-                display: flex;
-                flex-direction: row;
-            }
-            
-            #bb-location-map {
-                flex: 1;
-                margin-right: 15px;
-            }
-            
-            .user-results {
-                flex: 1;
-                overflow-y: auto;
-                max-height: 600px;
+        .filter-container .form-field {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        @media (max-width: 767px) {
+            .filter-container {
+                flex-direction: column;
             }
         }
         </style>

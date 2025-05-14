@@ -256,12 +256,58 @@
             
             bbLogDebug('Name search input', searchValue);
             
-            if (window.allUsers && window.filteredUsers) {
+            if (window.allUsers) {
+                // First filter by name
                 if (searchValue.length === 0) {
-                    window.filteredUsers = window.allUsers.slice();
+                    window.filteredByName = window.allUsers.slice();
                 } else {
-                    window.filteredUsers = window.allUsers.filter(function(user) {
+                    window.filteredByName = window.allUsers.filter(function(user) {
                         return user.name.toLowerCase().indexOf(searchValue) !== -1;
+                    });
+                }
+                
+                // Then apply profile type filter if selected
+                var selectedType = $('#bb_profile_type_filter').val();
+                if (!selectedType || selectedType === '') {
+                    window.filteredUsers = window.filteredByName.slice();
+                } else {
+                    window.filteredUsers = window.filteredByName.filter(function(user) {
+                        return user.profile_type === selectedType;
+                    });
+                }
+                
+                // Reset to first page
+                window.currentPage = 1;
+                $('input[name="current_page"]').val(1);
+                
+                // Display filtered results
+                displayUserResults(window.filteredUsers);
+            }
+        });
+        
+        // Profile type filter
+        $(document).on('change', '#bb_profile_type_filter', function() {
+            var selectedType = $(this).val();
+            
+            bbLogDebug('Profile type filter changed', selectedType);
+            
+            if (window.allUsers && window.filteredByName) {
+                // First filter by name
+                if ($('#bb_name_search').val().length === 0) {
+                    window.filteredByName = window.allUsers.slice();
+                } else {
+                    var searchValue = $('#bb_name_search').val().toLowerCase();
+                    window.filteredByName = window.allUsers.filter(function(user) {
+                        return user.name.toLowerCase().indexOf(searchValue) !== -1;
+                    });
+                }
+                
+                // Then filter by profile type
+                if (!selectedType || selectedType === '') {
+                    window.filteredUsers = window.filteredByName.slice();
+                } else {
+                    window.filteredUsers = window.filteredByName.filter(function(user) {
+                        return user.profile_type === selectedType;
                     });
                 }
                 
@@ -335,6 +381,12 @@
             var $info = $('<div class="user-info"></div>');
             
             $info.append('<h4><a href="' + user.profile_url + '">' + user.name + '</a></h4>');
+            
+            // Add profile type badge if available
+            if (user.profile_type_label) {
+                $info.append('<span class="profile-type-badge">' + user.profile_type_label + '</span>');
+            }
+            
             $info.append('<p class="user-location">' + locationDisplay + '</p>');
             $info.append('<p class="user-distance">' + distanceText + '</p>');
             
@@ -394,6 +446,7 @@
         
         // Store data for filtering/pagination
         window.allUsers = data.users || [];
+        window.filteredByName = data.users ? data.users.slice() : [];
         window.filteredUsers = data.users ? data.users.slice() : [];
         window.currentPage = 1;
         
@@ -431,11 +484,11 @@
             $results.append('<div id="bb-location-pagination" class="location-pagination"></div>');
         }
         
-        // Show name search if we have results
+        // Show filters if we have results
         if (data.count > 0) {
-            $('.name-search-container').show();
+            $('.filter-container').show();
         } else {
-            $('.name-search-container').hide();
+            $('.filter-container').hide();
         }
         
         // Display users with pagination
@@ -493,6 +546,7 @@
                 var infoWindow = new google.maps.InfoWindow({
                     content: '<div class="map-info-window">' +
                         '<h4>' + user.name + '</h4>' +
+                        (user.profile_type_label ? '<span class="profile-type-badge">' + user.profile_type_label + '</span><br>' : '') +
                         '<p>' + user.location.join(', ') + '</p>' +
                         '<p>' + user.distance + ' ' + (data.unit === 'mi' ? 'miles' : 'km') + ' away</p>' +
                         '<p><a href="' + user.profile_url + '">' + bbLocationFinderVars.strings.view_profile + '</a></p>' +

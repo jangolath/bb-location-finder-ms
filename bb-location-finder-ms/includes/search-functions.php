@@ -86,6 +86,23 @@ class BB_Location_Search {
             
             $location_parts = array_filter(array($user->city, $user->state, $user->country));
             
+            // Get user's profile type
+            $profile_type = '';
+            $profile_type_label = '';
+            
+            if (function_exists('bp_get_member_type')) {
+                $member_types = bp_get_member_type($user->ID, false);
+                if (!empty($member_types) && is_array($member_types)) {
+                    $profile_type = $member_types[0]; // Just use the first one if multiple exist
+                    
+                    // Get the label
+                    $type_object = bp_get_member_type_object($profile_type);
+                    if ($type_object) {
+                        $profile_type_label = $type_object->labels['singular_name'];
+                    }
+                }
+            }
+            
             $formatted_users[] = array(
                 'id' => $user->ID,
                 'name' => $user->display_name,
@@ -99,7 +116,9 @@ class BB_Location_Search {
                 )),
                 'lat' => $user->lat,
                 'lng' => $user->lng,
-                'unit' => $unit
+                'unit' => $unit,
+                'profile_type' => $profile_type,
+                'profile_type_label' => $profile_type_label
             );
         }
         

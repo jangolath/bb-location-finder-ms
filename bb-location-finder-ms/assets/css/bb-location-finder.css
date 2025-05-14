@@ -241,3 +241,39 @@ pre {
     max-height: 300px;
     border: 1px solid #ddd;
 }
+
+/* Profile Type Badge */
+.profile-type-badge {
+    display: inline-block;
+    background: #f0f0f0;
+    color: #555;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 8px;
+    border: 1px solid #ddd;
+    vertical-align: middle;
+}
+
+/* Filter Container Styles */
+.filter-container {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.filter-container .form-field {
+    flex: 1;
+    min-width: 200px;
+}
+
+@media (max-width: 767px) {
+    .filter-container {
+        flex-direction: column;
+    }
+}

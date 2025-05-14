@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: BuddyBoss Location Finder
- * Description: Allows BuddyBoss users to set their location and search for other members by proximity
- * Version: 1.0.13
+ * Description: Allows BuddyBoss users to set their location and search for other members by proximity, name, and profile type
+ * Version: 1.0.14
  * Author: Jason Wood
  * Text Domain: bb-location-finder
  * Domain Path: /languages
@@ -22,7 +22,7 @@ class BB_Location_Finder {
     /**
      * Plugin version
      */
-    const VERSION = '1.0.13';
+    const VERSION = '1.0.14';
     
     /**
      * Singleton instance
