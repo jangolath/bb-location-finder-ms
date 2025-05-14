@@ -132,11 +132,10 @@ class BB_Location_Shortcodes {
         $output .= '</div>';
         
         $output .= '<div class="form-field">';
-        $output .= '<label for="bb_search_radius">' . __('Radius', 'bb-location-finder') . '</label>';
+        $output .= '<label for="bb_search_radius">' . __('Radius', 'bb-location-finder') . '<span class="unit" style="font-weight: normal"> (' . esc_html($unit_display) . ')</span></label>';
         $output .= '<select id="bb_search_radius" name="radius">';
         $output .= $radius_options;
         $output .= '</select>';
-        $output .= '<span class="unit">' . esc_html($unit_display) . '</span>';
         $output .= '</div>';
         
         $output .= '<div class="form-field">';
