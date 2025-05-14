@@ -78,6 +78,8 @@ class BB_Location_Search {
         
         // Format results for response
         $formatted_users = array();
+        $profile_types_found = array(); // For debugging
+        
         foreach ($users as $user) {
             // Skip current user
             if ($user->ID == get_current_user_id()) {
@@ -100,6 +102,12 @@ class BB_Location_Search {
                     if ($type_object) {
                         $profile_type_label = $type_object->labels['singular_name'];
                     }
+                    
+                    // For debugging
+                    if (!isset($profile_types_found[$profile_type])) {
+                        $profile_types_found[$profile_type] = 0;
+                    }
+                    $profile_types_found[$profile_type]++;
                 }
             }
             
@@ -122,13 +130,21 @@ class BB_Location_Search {
             );
         }
         
+        // Log profile types for debugging (in PHP error log)
+        if (!empty($profile_types_found)) {
+            error_log('BB Location Finder - Profile types found: ' . json_encode($profile_types_found));
+        }
+        
         wp_send_json_success(array(
             'users' => $formatted_users,
             'center' => $coordinates,
             'count' => count($formatted_users),
             'unit' => $unit,
             'show_map' => $show_map,
-            'map_height' => $map_height
+            'map_height' => $map_height,
+            'debug' => array(
+                'profile_types_found' => $profile_types_found
+            )
         ));
     }
 }

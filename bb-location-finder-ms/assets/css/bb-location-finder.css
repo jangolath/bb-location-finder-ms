@@ -70,21 +70,31 @@
         min-height: 400px;
     }
     
+    /* Two-column layout for user results */
     .user-results {
-        flex: 1;
-        overflow-y: auto;
-        max-height: 600px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 15px;
     }
 }
 
 .user-item {
+    flex: 0 0 calc(50% - 10px);
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
     padding: 15px;
-    margin-bottom: 10px;
     border: 1px solid #eee;
     border-radius: 4px;
     background-color: #f9f9f9;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+    .user-item {
+        flex: 0 0 100%;
+    }
 }
 
 .user-avatar {

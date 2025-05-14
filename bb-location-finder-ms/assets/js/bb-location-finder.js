@@ -339,6 +339,65 @@
                 }, 200);
             }
         });
+
+         // Apply filters button handler
+        $(document).on('click', '#bb-apply-filters', function() {
+            bbLogDebug('Apply filters button clicked');
+            
+            if (window.allUsers) {
+                applyFilters();
+            }
+        });
+        
+        // Helper function to apply all filters
+        function applyFilters() {
+            if (!window.allUsers) {
+                bbLogDebug('No users to filter');
+                return;
+            }
+            
+            // Get filter values
+            var nameFilter = $('#bb_name_search').val().toLowerCase();
+            var profileTypeFilter = $('#bb_profile_type_filter').val();
+            
+            bbLogDebug('Applying filters', {
+                nameFilter: nameFilter,
+                profileTypeFilter: profileTypeFilter
+            });
+            
+            // Start with all users
+            var filtered = window.allUsers.slice();
+            
+            // Apply name filter if specified
+            if (nameFilter.length > 0) {
+                filtered = filtered.filter(function(user) {
+                    return user.name.toLowerCase().indexOf(nameFilter) !== -1;
+                });
+            }
+            
+            // Apply profile type filter if specified
+            if (profileTypeFilter && profileTypeFilter !== '') {
+                filtered = filtered.filter(function(user) {
+                    return user.profile_type === profileTypeFilter;
+                });
+            }
+            
+            // Update filtered users
+            window.filteredUsers = filtered;
+            
+            // Reset to first page
+            window.currentPage = 1;
+            $('input[name="current_page"]').val(1);
+            
+            // Display filtered results
+            displayUserResults(window.filteredUsers);
+            
+            // Update result count text
+            var countText = window.filteredUsers.length + ' ' + 
+                (window.filteredUsers.length === 1 ? bbLocationFinderVars.strings.member : bbLocationFinderVars.strings.members) + 
+                ' ' + bbLocationFinderVars.strings.found;
+            $('#bb-location-results .result-count').text(countText);
+        }
     });
     
     // Display user results with pagination
@@ -350,7 +409,12 @@
         
         bbLogDebug('Displaying user results', {
             count: users.length,
-            page: window.currentPage
+            page: window.currentPage,
+            profileTypeSample: users.length > 0 ? {
+                name: users[0].name,
+                profile_type: users[0].profile_type,
+                profile_type_label: users[0].profile_type_label
+            } : null
         });
         
         var $userResults = $('#bb-location-users');
@@ -371,12 +435,16 @@
         var endIndex = Math.min(startIndex + resultsPerPage, users.length);
         var pageUsers = users.slice(startIndex, endIndex);
         
-        // Add user results
+         // Add user results
         $.each(pageUsers, function(index, user) {
             var locationDisplay = user.location.join(', ');
             var distanceText = user.distance + ' ' + (user.unit === 'mi' ? 'miles' : 'km') + ' away';
             
             var $userItem = $('<div class="user-item"></div>').attr('data-id', user.id);
+            if (user.profile_type) {
+                $userItem.attr('data-profile-type', user.profile_type);
+            }
+            
             var $avatar = $('<div class="user-avatar"><img src="' + user.avatar + '" alt=""></div>');
             var $info = $('<div class="user-info"></div>');
             
@@ -393,6 +461,9 @@
             $userItem.append($avatar).append($info);
             $userResults.append($userItem);
         });
+        
+        // After all items are added, ensure proper wrapping with clearfix
+        $userResults.append('<div style="clear:both;"></div>');
         
         // Update pagination
         updatePagination(totalPages, currentPage);
@@ -446,9 +517,17 @@
         
         // Store data for filtering/pagination
         window.allUsers = data.users || [];
-        window.filteredByName = data.users ? data.users.slice() : [];
         window.filteredUsers = data.users ? data.users.slice() : [];
         window.currentPage = 1;
+        
+        bbLogDebug('Search results received', {
+            totalUsers: window.allUsers.length,
+            profileTypes: window.allUsers.map(function(u) { 
+                return u.profile_type;
+            }).filter(function(value, index, self) { 
+                return self.indexOf(value) === index;
+            })
+        });
         
         // Clear previous results
         $results.empty();

@@ -87,231 +87,237 @@ class BB_Location_Shortcodes {
     }
     
     /**
-     * Location search shortcode
-     */
-    public function location_search_shortcode($atts) {
-        // Parse attributes
-        $atts = shortcode_atts(array(
-            'radius_options' => '5,10,25,50,100',
-            'unit' => 'km', // km or mi
-            'show_map' => 'yes',
-            'map_height' => '400px',
-            'results_per_page' => '10',
-            'show_profile_type_filter' => 'yes', // New parameter
-        ), $atts);
-        
-        // Enqueue necessary scripts and styles
-        wp_enqueue_style('bb-location-finder-styles');
-        
-        // Only enqueue map scripts if showing map
-        if ($atts['show_map'] === 'yes') {
-            wp_enqueue_script('google-maps');
-        }
-        
-        wp_enqueue_script('bb-location-finder-js');
-        
-        // Prepare radius options
-        $radius_values = explode(',', $atts['radius_options']);
-        $radius_options = '';
-        foreach ($radius_values as $value) {
-            $value = trim($value);
-            $radius_options .= '<option value="' . esc_attr($value) . '">' . esc_html($value) . '</option>';
-        }
-        
-        // Unit display
-        $unit_display = ($atts['unit'] == 'mi') ? __('miles', 'bb-location-finder') : __('kilometers', 'bb-location-finder');
-        
-        // Create output
-        $output = '<div class="bb-location-search-container">';
-        $output .= '<form id="bb-location-search-form">';
-        $output .= wp_nonce_field('bb_location_search_nonce', 'search_nonce', true, false);
-        
-        $output .= '<div class="search-fields">';
-        $output .= '<div class="form-field">';
-        $output .= '<label for="bb_search_location">' . __('Location', 'bb-location-finder') . '</label>';
-        $output .= '<input type="text" id="bb_search_location" name="location" placeholder="' . esc_attr__('Enter city, state, or country', 'bb-location-finder') . '" />';
-        $output .= '</div>';
-        
-        $output .= '<div class="form-field">';
-        $output .= '<label for="bb_search_radius">' . __('Radius', 'bb-location-finder') . '<span class="unit" style="font-weight: normal"> (' . esc_html($unit_display) . ')</span></label>';
-        $output .= '<select id="bb_search_radius" name="radius">';
-        $output .= $radius_options;
-        $output .= '</select>';
-        $output .= '</div>';
-        
-        $output .= '<div class="form-field">';
-        $output .= '<button type="submit" class="button">' . __('Search', 'bb-location-finder') . '</button>';
-        $output .= '</div>';
-        $output .= '</div>';
-        
-        // Add filter container (only visible after results are loaded)
-        $output .= '<div class="filter-container" style="display:none; margin-top:15px;">';
-        
-        // Add name search filter
-        $output .= '<div class="form-field">';
-        $output .= '<label for="bb_name_search">' . __('Filter by Name', 'bb-location-finder') . '</label>';
-        $output .= '<input type="text" id="bb_name_search" name="name_search" placeholder="' . esc_attr__('Enter member name', 'bb-location-finder') . '" />';
-        $output .= '</div>';
-        
-        // Add profile type filter (only if enabled)
-        if ($atts['show_profile_type_filter'] === 'yes') {
-            // Get profile types dynamically if BuddyBoss Profile Types are active
-            $profile_types = array();
-            
-            if (function_exists('bp_get_member_types')) {
-                $member_types = bp_get_member_types(array(), 'objects');
-                
-                if (!empty($member_types)) {
-                    foreach ($member_types as $type => $object) {
-                        $profile_types[$type] = $object->labels['singular_name'];
-                    }
-                }
-            }
-            
-            if (!empty($profile_types)) {
-                $output .= '<div class="form-field profile-type-filter">';
-                $output .= '<label for="bb_profile_type_filter">' . __('Filter by Profile Type', 'bb-location-finder') . '</label>';
-                $output .= '<select id="bb_profile_type_filter" name="profile_type">';
-                $output .= '<option value="">' . __('All Profile Types', 'bb-location-finder') . '</option>';
-                
-                foreach ($profile_types as $type => $label) {
-                    $output .= '<option value="' . esc_attr($type) . '">' . esc_html($label) . '</option>';
-                }
-                
-                $output .= '</select>';
-                $output .= '</div>';
-            }
-        }
-        
-        $output .= '</div>'; // End filter container
-        
-        $output .= '<input type="hidden" name="unit" value="' . esc_attr($atts['unit']) . '" />';
-        $output .= '<input type="hidden" name="show_map" value="' . esc_attr($atts['show_map']) . '" />';
-        $output .= '<input type="hidden" name="results_per_page" value="' . esc_attr($atts['results_per_page']) . '" />';
-        $output .= '<input type="hidden" name="current_page" value="1" />';
-        $output .= '</form>';
-        
-        $output .= '<div id="bb-location-results" class="location-results">';
-        $output .= '<div class="result-count"></div>';
-        
-        $output .= '<div class="result-container">';
-        
-        // Only add map if show_map is yes
-        if ($atts['show_map'] === 'yes') {
-            $output .= '<div id="bb-location-map" style="height: ' . esc_attr($atts['map_height']) . ';"></div>';
-        }
-        
-        $output .= '<div id="bb-location-users" class="user-results"></div>';
-        $output .= '</div>';
-        
-        // Add pagination container
-        $output .= '<div id="bb-location-pagination" class="location-pagination" style="display:none; margin-top:15px; text-align:center;"></div>';
-        
-        $output .= '</div>';
-        $output .= '</div>';
-        
-        // Add inline script to handle profile type filtering
-        ob_start();
-        ?>
-        <script type="text/javascript">
-        jQuery(document).ready(function($) {
-            // Handle profile type filter changes
-            $(document).on('change', '#bb_profile_type_filter', function() {
-                var selectedType = $(this).val();
-                
-                if (window.allUsers && window.filteredByName) {
-                    // First filter by name
-                    if ($('#bb_name_search').val().length === 0) {
-                        window.filteredByName = window.allUsers.slice();
-                    } else {
-                        var searchValue = $('#bb_name_search').val().toLowerCase();
-                        window.filteredByName = window.allUsers.filter(function(user) {
-                            return user.name.toLowerCase().indexOf(searchValue) !== -1;
-                        });
-                    }
-                    
-                    // Then filter by profile type
-                    if (selectedType === '') {
-                        window.filteredUsers = window.filteredByName.slice();
-                    } else {
-                        window.filteredUsers = window.filteredByName.filter(function(user) {
-                            return user.profile_type === selectedType;
-                        });
-                    }
-                    
-                    // Reset to first page
-                    window.currentPage = 1;
-                    $('input[name="current_page"]').val(1);
-                    
-                    // Display filtered results
-                    displayUserResults(window.filteredUsers);
-                }
-            });
-            
-            // Override name search to work with profile type filter
-            $(document).on('input', '#bb_name_search', function() {
-                var searchValue = $(this).val().toLowerCase();
-                
-                if (window.allUsers) {
-                    // First filter by name
-                    if (searchValue.length === 0) {
-                        window.filteredByName = window.allUsers.slice();
-                    } else {
-                        window.filteredByName = window.allUsers.filter(function(user) {
-                            return user.name.toLowerCase().indexOf(searchValue) !== -1;
-                        });
-                    }
-                    
-                    // Then apply profile type filter if selected
-                    var selectedType = $('#bb_profile_type_filter').val();
-                    if (selectedType === '') {
-                        window.filteredUsers = window.filteredByName.slice();
-                    } else {
-                        window.filteredUsers = window.filteredByName.filter(function(user) {
-                            return user.profile_type === selectedType;
-                        });
-                    }
-                    
-                    // Reset to first page
-                    window.currentPage = 1;
-                    $('input[name="current_page"]').val(1);
-                    
-                    // Display filtered results
-                    displayUserResults(window.filteredUsers);
-                }
-            });
-        });
-        </script>
-        
-        <style>
-        /* Filter Container Styles */
-        .filter-container {
-            margin-top: 15px;
-            padding: 15px;
-            background: #f9f9f9;
-            border: 1px solid #eee;
-            border-radius: 4px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        
-        .filter-container .form-field {
-            flex: 1;
-            min-width: 200px;
-        }
-        
-        @media (max-width: 767px) {
-            .filter-container {
-                flex-direction: column;
-            }
-        }
-        </style>
-        <?php
-        $output .= ob_get_clean();
-        
-        return $output;
+ * Location search shortcode
+ */
+public function location_search_shortcode($atts) {
+    // Parse attributes
+    $atts = shortcode_atts(array(
+        'radius_options' => '5,10,25,50,100',
+        'unit' => 'km', // km or mi
+        'show_map' => 'yes',
+        'map_height' => '400px',
+        'results_per_page' => '10',
+        'show_profile_type_filter' => 'yes', // New parameter
+        'exclude_profile_types' => 'staff', // Comma-separated list of profile types to exclude
+    ), $atts);
+    
+    // Enqueue necessary scripts and styles
+    wp_enqueue_style('bb-location-finder-styles');
+    
+    // Only enqueue map scripts if showing map
+    if ($atts['show_map'] === 'yes') {
+        wp_enqueue_script('google-maps');
     }
+    
+    wp_enqueue_script('bb-location-finder-js');
+    
+    // Prepare radius options
+    $radius_values = explode(',', $atts['radius_options']);
+    $radius_options = '';
+    foreach ($radius_values as $value) {
+        $value = trim($value);
+        $radius_options .= '<option value="' . esc_attr($value) . '">' . esc_html($value) . '</option>';
+    }
+    
+    // Unit display
+    $unit_display = ($atts['unit'] == 'mi') ? __('miles', 'bb-location-finder') : __('kilometers', 'bb-location-finder');
+    
+    // Create output
+    $output = '<div class="bb-location-search-container">';
+    $output .= '<form id="bb-location-search-form">';
+    $output .= wp_nonce_field('bb_location_search_nonce', 'search_nonce', true, false);
+    
+    $output .= '<div class="search-fields">';
+    $output .= '<div class="form-field">';
+    $output .= '<label for="bb_search_location">' . __('Location', 'bb-location-finder') . '</label>';
+    $output .= '<input type="text" id="bb_search_location" name="location" placeholder="' . esc_attr__('Enter city, state, or country', 'bb-location-finder') . '" />';
+    $output .= '</div>';
+    
+    $output .= '<div class="form-field">';
+    $output .= '<label for="bb_search_radius">' . __('Radius', 'bb-location-finder') . '<span class="unit" style="font-weight: normal"> (' . esc_html($unit_display) . ')</span></label>';
+    $output .= '<select id="bb_search_radius" name="radius">';
+    $output .= $radius_options;
+    $output .= '</select>';
+    $output .= '</div>';
+    
+    $output .= '<div class="form-field">';
+    $output .= '<button type="submit" class="button">' . __('Search', 'bb-location-finder') . '</button>';
+    $output .= '</div>';
+    $output .= '</div>';
+    
+    // Process excluded profile types
+    $excluded_types = array();
+    if (!empty($atts['exclude_profile_types'])) {
+        $excluded_types = array_map('trim', explode(',', strtolower($atts['exclude_profile_types'])));
+    }
+    $output .= '<input type="hidden" name="excluded_profile_types" value="' . esc_attr(implode(',', $excluded_types)) . '" />';
+    
+    // Add filter container (only visible after results are loaded)
+    $output .= '<div class="filter-container" style="display:none; margin-top:15px;">';
+    
+    // Add name search filter
+    $output .= '<div class="form-field">';
+    $output .= '<label for="bb_name_search">' . __('Filter by Name', 'bb-location-finder') . '</label>';
+    $output .= '<input type="text" id="bb_name_search" name="name_search" placeholder="' . esc_attr__('Enter member name', 'bb-location-finder') . '" />';
+    $output .= '</div>';
+    
+    // Add profile type filter (only if enabled)
+    if ($atts['show_profile_type_filter'] === 'yes') {
+        // Get profile types dynamically if BuddyBoss Profile Types are active
+        $profile_types = array();
+        
+        if (function_exists('bp_get_member_types')) {
+            $member_types = bp_get_member_types(array(), 'objects');
+            
+            if (!empty($member_types)) {
+                foreach ($member_types as $type => $object) {
+                    // Skip excluded types
+                    if (in_array(strtolower($type), $excluded_types)) {
+                        continue;
+                    }
+                    $profile_types[$type] = $object->labels['singular_name'];
+                }
+            }
+        }
+        
+        if (!empty($profile_types)) {
+            $output .= '<div class="form-field profile-type-filter">';
+            $output .= '<label for="bb_profile_type_filter">' . __('Filter by Profile Type', 'bb-location-finder') . '</label>';
+            $output .= '<select id="bb_profile_type_filter" name="profile_type">';
+            $output .= '<option value="">' . __('All Profile Types', 'bb-location-finder') . '</option>';
+            
+            foreach ($profile_types as $type => $label) {
+                $output .= '<option value="' . esc_attr($type) . '">' . esc_html($label) . '</option>';
+            }
+            
+            $output .= '</select>';
+            $output .= '</div>';
+        }
+    }
+    
+    // Add Apply Filter button
+    $output .= '<div class="form-field filter-button">';
+    $output .= '<button type="button" id="bb-apply-filters" class="button">' . __('Apply Filters', 'bb-location-finder') . '</button>';
+    $output .= '</div>';
+    
+    $output .= '</div>'; // End filter container
+    
+    $output .= '<input type="hidden" name="unit" value="' . esc_attr($atts['unit']) . '" />';
+    $output .= '<input type="hidden" name="show_map" value="' . esc_attr($atts['show_map']) . '" />';
+    $output .= '<input type="hidden" name="results_per_page" value="' . esc_attr($atts['results_per_page']) . '" />';
+    $output .= '<input type="hidden" name="current_page" value="1" />';
+    $output .= '</form>';
+    
+    $output .= '<div id="bb-location-results" class="location-results">';
+    $output .= '<div class="result-count"></div>';
+    
+    $output .= '<div class="result-container">';
+    
+    // Only add map if show_map is yes
+    if ($atts['show_map'] === 'yes') {
+        $output .= '<div id="bb-location-map" style="height: ' . esc_attr($atts['map_height']) . ';"></div>';
+    }
+    
+    $output .= '<div id="bb-location-users" class="user-results"></div>';
+    $output .= '</div>';
+    
+    // Add pagination container
+    $output .= '<div id="bb-location-pagination" class="location-pagination" style="display:none; margin-top:15px; text-align:center;"></div>';
+    
+    $output .= '</div>';
+    $output .= '</div>';
+    
+    // Add updated inline styles
+    $output .= '<style>
+    /* Filter Container Styles */
+    .filter-container {
+        margin-top: 15px;
+        padding: 15px;
+        background: #f9f9f9;
+        border: 1px solid #eee;
+        border-radius: 4px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    
+    .filter-container .form-field {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .filter-container .filter-button {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: flex-end;
+    }
+    
+    @media (max-width: 767px) {
+        .filter-container {
+            flex-direction: column;
+        }
+        
+        .filter-container .filter-button {
+            width: 100%;
+        }
+    }
+    
+    /* Profile Type Badge */
+    .profile-type-badge {
+        display: inline-block;
+        background: #f0f0f0;
+        color: #555;
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-left: 8px;
+        border: 1px solid #ddd;
+        vertical-align: middle;
+    }
+    
+    /* Two-column layout for user results */
+    .user-results {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 15px;
+    }
+    
+    .user-item {
+        flex: 0 0 calc(50% - 10px);
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        border: 1px solid #eee;
+        border-radius: 4px;
+        background-color: #f9f9f9;
+    }
+    
+    /* Ensure user info doesn\'t overflow */
+    .user-info {
+        flex: 1;
+        min-width: 0; /* Enables text truncation */
+        overflow: hidden;
+    }
+    
+    .user-info h4 {
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 767px) {
+        .user-item {
+            flex: 0 0 100%;
+        }
+    }
+    </style>';
+    
+    return $output;
+}
     
     /**
      * AJAX handler for unauthorized users
