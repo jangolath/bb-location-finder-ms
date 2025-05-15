@@ -69,57 +69,31 @@
         flex: 1;
         min-height: 400px;
     }
-    
 }
-/* Two-column layout for user results */
+
+/* Two-column layout for user results using CSS Grid */
 .user-results {
-    overflow: hidden; /* Clearfix */
+    width: auto;
     margin-top: 15px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
 }
 
 .user-item {
-    float: left;
-    width: calc(50% - 10px);
-    margin-right: 10px;
-    margin-bottom: 10px;
+    width: auto;
+    margin: 0;
     padding: 15px;
     border: 1px solid #eee;
     border-radius: 4px;
     background-color: #f9f9f9;
-    box-sizing: border-box;
-}
-
-.user-item:nth-child(2n) {
-    margin-right: 0;
-}
-
-.user-avatar {
-    float: left;
-    margin-right: 15px;
-}
-
-.user-info {
-    overflow: hidden; /* Clearfix */
-}
-
-.user-info h4 {
-    margin-top: 0;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    white-space: nowrap;
-}
-
-/* Responsive adjustments */
-@media (max-width: 767px) {
-    .user-item {
-        float: none;
-        width: 100%;
-        margin-right: 0;
-    }
+    display: flex;
+    align-items: center;
 }
 
 .user-avatar {
     margin-right: 15px;
+    flex-shrink: 0;
 }
 
 .user-avatar img {
@@ -128,8 +102,16 @@
     border-radius: 50%;
 }
 
+.user-info {
+    flex-grow: 1;
+    min-width: 0; /* Enable text truncation */
+}
+
 .user-info h4 {
     margin: 0 0 5px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .user-location {
@@ -141,6 +123,13 @@
     margin: 0;
     font-style: italic;
     color: #888;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+    .user-results {
+        grid-template-columns: 1fr; /* Single column on mobile */
+    }
 }
 
 .no-results,
@@ -296,6 +285,7 @@ pre {
     display: flex;
     flex-wrap: wrap;
     gap: 15px;
+    align-items: flex-end;
 }
 
 .filter-container .form-field {
@@ -303,8 +293,18 @@ pre {
     min-width: 200px;
 }
 
+.filter-container .filter-button {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-end;
+}
+
 @media (max-width: 767px) {
     .filter-container {
         flex-direction: column;
+    }
+    
+    .filter-container .filter-button {
+        width: 100%;
     }
 }

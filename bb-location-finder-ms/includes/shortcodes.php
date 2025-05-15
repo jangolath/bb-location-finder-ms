@@ -229,95 +229,100 @@ public function location_search_shortcode($atts) {
     
     // Add updated inline styles
     $output .= '<style>
-    /* Filter Container Styles */
-    .filter-container {
-        margin-top: 15px;
-        padding: 15px;
-        background: #f9f9f9;
-        border: 1px solid #eee;
-        border-radius: 4px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        align-items: flex-end;
-    }
-    
-    .filter-container .form-field {
-        flex: 1;
-        min-width: 200px;
-    }
-    
-    .filter-container .filter-button {
-        flex: 0 0 auto;
-        display: flex;
-        align-items: flex-end;
-    }
-    
-    @media (max-width: 767px) {
+        /* Filter Container Styles */
         .filter-container {
-            flex-direction: column;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+        }
+        
+        .filter-container .form-field {
+            flex: 1;
+            min-width: 200px;
         }
         
         .filter-container .filter-button {
-            width: 100%;
+            flex: 0 0 auto;
+            display: flex;
+            align-items: flex-end;
         }
-    }
-    
-    /* Profile Type Badge */
-    .profile-type-badge {
-        display: inline-block;
-        background: #f0f0f0;
-        color: #555;
-        font-size: 12px;
-        padding: 2px 8px;
-        border-radius: 10px;
-        margin-left: 8px;
-        border: 1px solid #ddd;
-        vertical-align: middle;
-    }
-    
-    /* Two-column layout for user results */
-    .user-results {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        margin-top: 15px;
-    }
-    
-    .user-item {
-        flex: 0 0 calc(50% - 10px);
-        margin-bottom: 5px;
-        display: flex;
-        align-items: center;
-        padding: 15px;
-        border: 1px solid #eee;
-        border-radius: 4px;
-        background-color: #f9f9f9;
-    }
-    
-    /* Ensure user info doesn\'t overflow */
-    .user-info {
-        flex: 1;
-        min-width: 0; /* Enables text truncation */
-        overflow: hidden;
-    }
-    
-    .user-info h4 {
-        text-overflow: ellipsis;
-        overflow: hidden;
-        white-space: nowrap;
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 767px) {
+        
+        @media (max-width: 767px) {
+            .filter-container {
+                flex-direction: column;
+            }
+            
+            .filter-container .filter-button {
+                width: 100%;
+            }
+        }
+        
+        /* Profile Type Badge */
+        .profile-type-badge {
+            display: inline-block;
+            background: #f0f0f0;
+            color: #555;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+            border: 1px solid #ddd;
+            vertical-align: middle;
+        }
+        
+        /* Two-column layout for user results using CSS Grid */
+        .user-results {
+            width: auto;
+            margin-top: 15px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
         .user-item {
-            flex: 0 0 100%;
+            width: auto;
+            margin: 0;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            display: flex;
+            align-items: center;
         }
+        
+        .user-avatar {
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        
+        .user-info {
+            flex-grow: 1;
+            min-width: 0; /* Enable text truncation */
+        }
+        
+        .user-info h4 {
+            margin: 0 0 5px;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 767px) {
+            .user-results {
+                grid-template-columns: 1fr; /* Single column on mobile */
+            }
+        }
+        </style>';
+        
+        return $output;
     }
-    </style>';
-    
-    return $output;
-}
     
     /**
      * AJAX handler for unauthorized users
