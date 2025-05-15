@@ -55,15 +55,15 @@
 }
 
 .result-container {
-    display: flex;
+    /*display: flex; Commented as it was causing a breaking flex in children elements*/
     flex-direction: column;
     gap: 20px;
 }
 
 @media (min-width: 768px) {
-    .result-container {
-        flex-direction: row;
-    }
+    /*.result-container { Commented as it was causing a breaking flex in children elements
+        /*flex-direction: row;
+    }*/
     
     #bb-location-map {
         flex: 1;
