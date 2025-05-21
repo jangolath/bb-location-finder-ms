@@ -10,11 +10,23 @@ class BB_Location_Tab_Integration {
      * Constructor
      */
     public function __construct() {
-        // Add tab to the members directory
-        add_action('bp_members_directory_tabs', array($this, 'add_location_tab'), 20);
+        // Debug hooks to check if directory tabs are being rendered
+        add_action('bp_before_directory_members_tabs', array($this, 'debug_before_tabs'));
+        add_action('bp_after_directory_members_tabs', array($this, 'debug_after_tabs'));
+        
+        // BuddyBoss Platform uses different hooks depending on version
+        // For BuddyBoss Platform 1.x
+        add_action('bp_members_directory_member_sub_types', array($this, 'add_location_tab_legacy'), 10);
+        
+        // For BuddyBoss Platform 2.x with Nouveau template
+        add_action('bp_nouveau_directory_nav_items', array($this, 'add_location_tab_nouveau'), 10);
+        
+        // Standard BP hook (used by both as fallback)
+        add_action('bp_members_directory_tabs', array($this, 'add_location_tab'), 10);
         
         // Add location search content when tab is active
         add_action('bp_members_directory_member_types', array($this, 'location_search_content'));
+        add_action('bp_members_directory_member_sub_types', array($this, 'location_search_content'));
         
         // Add AJAX handler for tab-specific location search
         add_action('wp_ajax_bb_tab_location_search', array($this, 'ajax_tab_location_search'));
@@ -22,36 +34,172 @@ class BB_Location_Tab_Integration {
         
         // Add necessary scripts and styles
         add_action('wp_enqueue_scripts', array($this, 'enqueue_tab_scripts'));
+        
+        // Register handler for BuddyBoss ajax filtering
+        add_filter('bp_ajax_querystring', array($this, 'handle_location_ajax_query_filter'), 20, 2);
+        
+        // Setup screen for location tab
+        add_action('bp_screens', array($this, 'setup_location_screen'));
     }
     
     /**
-     * Add location tab to members directory
+     * Debug hooks
      */
-    public function add_location_tab() {
-        $location_tab_class = '';
-        
-        // Check if this tab is active
-        if (bp_get_current_member_type() == 'location-search' || 
-            (isset($_COOKIE['bp-members-filter']) && $_COOKIE['bp-members-filter'] == 'location-search')) {
-            $location_tab_class = 'selected';
+    public function debug_before_tabs() {
+        error_log('BB Location Finder - Before directory members tabs hook fired');
+    }
+    
+    public function debug_after_tabs() {
+        error_log('BB Location Finder - After directory members tabs hook fired');
+    }
+    
+    /**
+     * Setup screen for location tab
+     */
+    public function setup_location_screen() {
+        if (bp_is_members_component() && !bp_is_user() && isset($_GET['type']) && $_GET['type'] === 'location-search') {
+            add_filter('bp_is_current_component', array($this, 'force_members_component'), 10, 2);
+            add_filter('bp_get_current_member_type', array($this, 'force_location_member_type'));
+            add_action('bp_template_content', array($this, 'location_tab_template_content'));
+        }
+    }
+    
+    /**
+     * Force members component for our tab
+     */
+    public function force_members_component($is_current_component, $component) {
+        if ($component === 'members') {
+            return true;
+        }
+        return $is_current_component;
+    }
+    
+    /**
+     * Force our tab as the current member type
+     */
+    public function force_location_member_type($member_type) {
+        return 'location-search';
+    }
+    
+    /**
+     * Handle location-search as a custom filter for BP Ajax
+     */
+    public function handle_location_ajax_query_filter($query_string, $object) {
+        // Only process for members component
+        if ($object !== 'members') {
+            return $query_string;
         }
         
-        echo '<li id="members-location-search" class="' . $location_tab_class . '">';
-        echo '<a href="' . bp_get_members_directory_permalink() . '?type=location-search" data-bp-filter="location-search" data-bp-object="members">';
-        echo __('Location Search', 'bb-location-finder');
-        echo '</a>';
-        echo '</li>';
+        // Check if our filter is active
+        if (isset($_POST['filter']) && $_POST['filter'] === 'location-search') {
+            // Here you would typically modify the query
+            // But since we're completely replacing the content, we'll just
+            // return an empty query that will return no results
+            return 'type=location-search&per_page=1&page=0';
+        }
+        
+        return $query_string;
+    }
+    
+    /**
+     * Template content for location tab via BP's template system
+     */
+    public function location_tab_template_content() {
+        // This will be shown when BuddyPress loads templates directly
+        $this->location_search_content();
+    }
+    
+    /**
+     * Backward compatibility for BuddyBoss 1.x
+     */
+    public function add_location_tab_legacy() {
+        $this->add_location_tab();
+    }
+    
+    /**
+     * Add tab for BuddyBoss 2.x with Nouveau template
+     */
+    public function add_location_tab_nouveau() {
+        $is_active = $this->is_location_tab_active();
+        
+        // Add the tab
+        ?>
+        <li id="members-location-search" class="<?php echo $is_active ? 'selected current' : ''; ?>">
+            <a href="<?php echo esc_url(add_query_arg('type', 'location-search', bp_get_members_directory_permalink())); ?>" 
+               id="location-search" 
+               data-bp-filter="location-search" 
+               data-bp-object="members">
+                <?php _e('Location Search', 'bb-location-finder'); ?>
+            </a>
+        </li>
+        <?php
+    }
+    
+    /**
+     * Add location tab to members directory - standard method
+     */
+    public function add_location_tab() {
+        $is_active = $this->is_location_tab_active();
+        
+        // Only add tab on members directory
+        if (bp_is_user() || !bp_is_members_component()) {
+            return;
+        }
+        
+        ?>
+        <li id="members-location-search" class="<?php echo $is_active ? 'selected' : ''; ?>">
+            <a href="<?php echo esc_url(add_query_arg('type', 'location-search', bp_get_members_directory_permalink())); ?>" 
+               data-bp-filter="location-search" 
+               data-bp-object="members">
+                <?php _e('Location Search', 'bb-location-finder'); ?>
+            </a>
+        </li>
+        <?php
+    }
+    
+    /**
+     * Check if location tab is active
+     */
+    private function is_location_tab_active() {
+        $is_active = false;
+        
+        // Check URL parameter
+        if (isset($_GET['type']) && $_GET['type'] === 'location-search') {
+            $is_active = true;
+        }
+        
+        // Check cookie
+        if (isset($_COOKIE['bp-members-filter']) && $_COOKIE['bp-members-filter'] === 'location-search') {
+            $is_active = true;
+        }
+        
+        // Check BP's internal state
+        if (function_exists('bp_get_current_member_type') && bp_get_current_member_type() === 'location-search') {
+            $is_active = true;
+        }
+        
+        // Check AJAX request
+        if (defined('DOING_AJAX') && DOING_AJAX && isset($_POST['filter']) && $_POST['filter'] === 'location-search') {
+            $is_active = true;
+        }
+        
+        return $is_active;
     }
     
     /**
      * Display the location search content when the tab is active
      */
     public function location_search_content() {
+        // Add a log to check if this function is being called
+        error_log('BB Location Finder - Tab content function called');
+        
         // Only show content if this tab is active
-        if ((bp_get_current_member_type() != 'location-search' && 
-            (!isset($_COOKIE['bp-members-filter']) || $_COOKIE['bp-members-filter'] != 'location-search'))) {
+        if (!$this->is_location_tab_active()) {
             return;
         }
+        
+        // Log that we're displaying the tab content
+        error_log('BB Location Finder - Displaying location tab content');
         
         // Get shortcode attributes from options or use defaults
         $radius_options = apply_filters('bb_location_tab_radius_options', '5,10,25,50,100');
@@ -177,26 +325,63 @@ class BB_Location_Tab_Integration {
         ob_start();
         ?>
         jQuery(document).ready(function($) {
+            // Debug log function
+            function bbTabDebug(message, data) {
+                if (typeof console !== 'undefined') {
+                    console.log('[BB Location Tab] ' + message, data || '');
+                }
+            }
+            
+            bbTabDebug('Tab JavaScript loaded');
+            
             // Check if we're on the location search tab
             function isLocationTab() {
                 if (window.location.href.indexOf('type=location-search') > -1) {
+                    bbTabDebug('Location tab active via URL parameter');
                     return true;
                 }
                 
                 if (document.cookie.indexOf('bp-members-filter=location-search') > -1) {
+                    bbTabDebug('Location tab active via cookie');
                     return true;
                 }
                 
-                if ($('#members-location-search').hasClass('selected')) {
+                if ($('#members-location-search').hasClass('selected') || $('#members-location-search').hasClass('current')) {
+                    bbTabDebug('Location tab active via class');
                     return true;
                 }
                 
+                bbTabDebug('Location tab not active');
                 return false;
             }
             
-            // Only run if we're on the location tab
-            if (!isLocationTab()) {
-                return;
+            // Fix for BuddyBoss tab switching
+            $(document).on('click', '#members-location-search a', function(e) {
+                bbTabDebug('Location tab clicked');
+                e.preventDefault();
+                
+                // Set cookie for BuddyBoss filter
+                document.cookie = 'bp-members-filter=location-search; path=/';
+                
+                // Update URL without refreshing
+                history.pushState(null, null, $(this).attr('href'));
+                
+                // Hide default members list and show our container
+                $('#members-dir-list').hide();
+                $('.bb-location-tab-container').show();
+                
+                // Activate our tab
+                $('.bp-navs ul li').removeClass('selected current');
+                $('#members-location-search').addClass('selected current');
+                
+                return false;
+            });
+            
+            // If we're on the location tab, hide the standard member directory content
+            if (isLocationTab()) {
+                bbTabDebug('Hiding standard members directory content');
+                $('#members-dir-list').hide();
+                $('.bb-location-tab-container').show();
             }
             
             // Handle search form submission
@@ -205,6 +390,8 @@ class BB_Location_Tab_Integration {
                 
                 var $form = $(this);
                 var $results = $('#bb-tab-location-results');
+                
+                bbTabDebug('Location search form submitted');
                 
                 // Show loading indicator
                 $results.addClass('loading').html('<div class="loading-indicator">Searching...</div>');
@@ -219,6 +406,8 @@ class BB_Location_Tab_Integration {
                     results_per_page: $form.find('[name="results_per_page"]').val()
                 };
                 
+                bbTabDebug('Search form data', formData);
+                
                 // Make AJAX request
                 $.ajax({
                     url: bbLocationFinderVars.ajaxurl,
@@ -228,12 +417,15 @@ class BB_Location_Tab_Integration {
                         $results.removeClass('loading');
                         
                         if (response.success) {
+                            bbTabDebug('Search successful', response.data);
                             displayTabSearchResults(response.data);
                         } else {
+                            bbTabDebug('Search error', response.data);
                             $results.html('<div class="search-error">' + response.data.message + '</div>');
                         }
                     },
                     error: function(xhr, status, error) {
+                        bbTabDebug('AJAX error', { status: status, error: error });
                         $results.removeClass('loading');
                         $results.html('<div class="search-error">' + bbLocationFinderVars.strings.search_error + '</div>');
                     }
@@ -321,6 +513,44 @@ class BB_Location_Tab_Integration {
                 }
             });
             
+            // Setup location field autocomplete if on the tab
+            if (isLocationTab()) {
+                setTimeout(function() {
+                    var searchField = document.getElementById('bb_tab_search_location');
+                    
+                    if (searchField && typeof google !== 'undefined' && 
+                        typeof google.maps !== 'undefined' && 
+                        typeof google.maps.places !== 'undefined') {
+                        
+                        bbTabDebug('Setting up location autocomplete');
+                        
+                        var searchAutocomplete = new google.maps.places.Autocomplete(searchField, {
+                            types: ['(cities)']
+                        });
+                        
+                        searchAutocomplete.addListener('place_changed', function() {
+                            var place = searchAutocomplete.getPlace();
+                            
+                            if (!place.geometry) {
+                                bbTabDebug('No place geometry in autocomplete response');
+                                return;
+                            }
+                            
+                            bbTabDebug('Place selected', place.formatted_address);
+                        });
+                    } else {
+                        bbTabDebug('Could not initialize autocomplete', { 
+                            fieldExists: !!searchField,
+                            googleExists: typeof google !== 'undefined',
+                            mapsExists: typeof google !== 'undefined' && typeof google.maps !== 'undefined',
+                            placesExists: typeof google !== 'undefined' && 
+                                         typeof google.maps !== 'undefined' && 
+                                         typeof google.maps.places !== 'undefined'
+                        });
+                    }
+                }, 1000); // Short delay to ensure DOM is ready
+            }
+            
             // Helper function to apply all filters
             function applyTabFilters() {
                 if (!window.tabAllUsers) {
@@ -370,6 +600,8 @@ class BB_Location_Tab_Integration {
                 var $results = $('#bb-tab-location-results');
                 var $resultCount = $('<div class="result-count"></div>');
                 
+                bbTabDebug('Displaying search results', { count: data.count });
+                
                 // Store data for filtering/pagination
                 window.tabAllUsers = data.users || [];
                 window.tabFilteredUsers = data.users ? data.users.slice() : [];
@@ -412,8 +644,11 @@ class BB_Location_Tab_Integration {
             // Function to display user results with pagination
             function displayTabUserResults(users) {
                 if (!users) {
+                    bbTabDebug('No users to display');
                     return;
                 }
+                
+                bbTabDebug('Displaying user results', { count: users.length });
                 
                 var $userResults = $('#bb-tab-location-users');
                 $userResults.empty();
@@ -605,5 +840,8 @@ class BB_Location_Tab_Integration {
 add_action('bp_init', function() {
     if (class_exists('BB_Location_Finder')) {
         new BB_Location_Tab_Integration();
+        
+        // Log that we've initialized the tab integration
+        error_log('BB Location Finder - Tab integration initialized');
     }
 });

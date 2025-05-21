@@ -377,3 +377,139 @@ pre {
         margin-bottom: 10px;
     }
 }
+
+/* Add this to the end of bb-location-finder.css */
+
+/* BuddyBoss-specific tab fixes */
+body.buddypress.members.type-location-search #content {
+    position: relative;
+}
+
+body.buddypress.members.type-location-search .bp-navs ul li {
+    flex: 0 1 auto;
+}
+
+/* Ensure tab is visible in BuddyBoss theme */
+#buddypress .bp-navs ul li#members-location-search {
+    display: inline-block !important;
+}
+
+/* Hide default members directory when on location tab */
+body.buddypress.members.type-location-search #buddypress .members-type-location-search #members-dir-list {
+    display: none !important;
+}
+
+body.buddypress.members.type-location-search #buddypress .members-type-location-search .bb-location-tab-container {
+    display: block !important;
+}
+
+/* Make sure form elements match BuddyBoss styles */
+.bb-location-tab-container .form-field input[type="text"],
+.bb-location-tab-container .form-field select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 34px;
+    padding: 8px 12px;
+    border: 1px solid #dedfe2;
+    border-radius: 3px;
+    background-color: #fff;
+    color: #122b46;
+    font-size: 14px;
+    transition: all linear .2s;
+}
+
+.bb-location-tab-container .form-field input[type="text"]:focus,
+.bb-location-tab-container .form-field select:focus {
+    border-color: var(--bb-primary-color, #007CFF);
+    box-shadow: 0 0 0 1px var(--bb-primary-color, #007CFF);
+}
+
+.bb-location-tab-container button.button {
+    display: inline-block;
+    font-weight: 400;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    user-select: none;
+    border: 1px solid transparent;
+    padding: 8px 15px;
+    font-size: 14px;
+    line-height: 1.5;
+    border-radius: 4px;
+    transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    color: #fff;
+    background-color: var(--bb-primary-color, #007CFF);
+    border-color: var(--bb-primary-color, #007CFF);
+    min-height: 34px;
+}
+
+.bb-location-tab-container .filter-container {
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+/* Fix user items to match BuddyBoss style */
+.bb-location-tab-container .user-item {
+    transition: all 0.2s ease;
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px 0 rgba(18,43,70,.12);
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.bb-location-tab-container .user-item:hover {
+    box-shadow: 0 6px 24px 0 rgba(18,43,70,.12);
+}
+
+.bb-location-tab-container .user-avatar img {
+    border-radius: 50%;
+}
+
+/* Force tab to be visible in all BuddyBoss themes */
+.bp-navs ul li#members-location-search {
+    display: inline-block !important;
+}
+
+.bp-navs ul li#members-location-search a {
+    display: block;
+    padding: 0 5px;
+    color: #939597;
+    text-decoration: none;
+    border: 0;
+}
+
+.bp-navs ul li#members-location-search.selected a,
+.bp-navs ul li#members-location-search.current a {
+    color: var(--bb-primary-color, #007CFF);
+    box-shadow: none;
+    font-weight: 500;
+}
+
+/* Ensure tab content is visible */
+.bb-location-tab-container {
+    display: block !important;
+}
+
+/* Fix for BP Nouveau template */
+.buddypress-wrap .bp-navs li#members-location-search.selected a,
+.buddypress-wrap .bp-navs li#members-location-search.current a {
+    background: none;
+    color: var(--bb-primary-color, #007CFF);
+}
+
+/* Hide default AJAX loading animation when our tab is active */
+body.buddypress.members.location-search-active div.bp-navs ~ div.bp-nouveau div.bp-nouveau-ajax-loader {
+    display: none !important;
+}
+
+/* Force show our content when tab is active via URL */
+body.buddypress.members[class*="type-location-search"] #members-dir-list,
+body.buddypress.members[class*="type-location-search"] .bp-nouveau-ajax-loader {
+    display: none !important;
+}
+
+body.buddypress.members[class*="type-location-search"] .bb-location-tab-container {
+    display: block !important;
+}
