@@ -308,3 +308,72 @@ pre {
         width: 100%;
     }
 }
+
+/* Tab Integration Styles */
+.bb-location-tab-container {
+    padding: 20px;
+    background: #fff;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Adjust search form for tab view */
+.members-type-location-search .bb-location-search-container {
+    margin-top: 15px;
+}
+
+/* Hide directory loop when location tab is active */
+.members-type-location-search #members-dir-list .item-list {
+    display: none;
+}
+
+/* Make pagination match BuddyBoss style */
+#bb-tab-location-pagination {
+    text-align: center;
+    margin: 20px 0;
+}
+
+#bb-tab-location-pagination .page-number {
+    padding: 5px 10px;
+    margin: 0 3px;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+#bb-tab-location-pagination .page-number.current {
+    background: var(--bb-primary-color, #007CFF);
+    color: #fff;
+}
+
+/* Match BuddyBoss styling for user items */
+.members-type-location-search .user-item {
+    transition: all 0.2s ease;
+    background: #fff;
+}
+
+.members-type-location-search .user-item:hover {
+    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+}
+
+/* Ensure results container doesn't conflict with BuddyBoss styles */
+.members-type-location-search .result-container {
+    width: 100%;
+    display: block;
+}
+
+/* Add responsive adjustments for tab view */
+@media (max-width: 767px) {
+    .bb-location-tab-container {
+        padding: 15px;
+    }
+    
+    .members-type-location-search .search-fields {
+        flex-direction: column;
+    }
+    
+    .members-type-location-search .search-fields .form-field {
+        margin-bottom: 10px;
+    }
+}
