@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BuddyBoss Location Finder
  * Description: Allows BuddyBoss users to set their location and search for other members by proximity, name, and profile type
- * Version: 1.0.18
+ * Version: 1.1.0
  * Author: Jason Wood
  * Text Domain: bb-location-finder
  * Domain Path: /languages
@@ -22,7 +22,7 @@ class BB_Location_Finder {
     /**
      * Plugin version
      */
-    const VERSION = '1.0.18';
+    const VERSION = '1.1.0';
     
     /**
      * Singleton instance
@@ -148,8 +148,28 @@ class BB_Location_Finder {
      * Add admin menu for network
      */
     public function add_network_admin_menu() {
+        // Make sure the parent exists (create it if needed)
+        if (!menu_page_url('buddyboss-advanced-enhancements', false)) {
+            // Create parent menu if it doesn't exist
+            add_menu_page(
+                __('BuddyBoss Advanced Enhancements', 'bb-location-finder'),
+                __('BB Advanced', 'bb-location-finder'),
+                'manage_network_options',
+                'buddyboss-advanced-enhancements',
+                function() {
+                    echo '<div class="wrap">';
+                    echo '<h1>' . __('BuddyBoss Advanced Enhancements', 'bb-location-finder') . '</h1>';
+                    echo '<p>' . __('Welcome to BuddyBoss Advanced Enhancements. Use the submenu to access specific features.', 'bb-location-finder') . '</p>';
+                    echo '</div>';
+                },
+                'dashicons-buddicons-buddypress-logo',
+                3
+            );
+        }
+        
+        // Add Location Finder as a submenu
         add_submenu_page(
-            'settings.php',
+            'buddyboss-advanced-enhancements',       // Parent slug
             __('Location Finder Settings', 'bb-location-finder'),
             __('Location Finder', 'bb-location-finder'),
             'manage_network_options',
@@ -415,7 +435,7 @@ class BB_Location_Finder {
      * Add settings link to plugins page for network admin
      */
     public function add_network_action_links($links) {
-        $settings_link = '<a href="' . network_admin_url('settings.php?page=bb-location-finder') . '">' . __('Settings', 'bb-location-finder') . '</a>';
+        $settings_link = '<a href="' . network_admin_url('admin.php?page=bb-location-finder') . '">' . __('Settings', 'bb-location-finder') . '</a>';
         array_unshift($links, $settings_link);
         return $links;
     }
@@ -439,7 +459,7 @@ class BB_Location_Finder {
         $redirect_url = add_query_arg(array(
             'page' => 'bb-location-finder',
             'updated' => 'true',
-        ), network_admin_url('settings.php'));
+        ), network_admin_url('admin.php'));
         
         wp_redirect($redirect_url);
         exit;

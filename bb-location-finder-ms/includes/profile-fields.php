@@ -5,7 +5,8 @@ class BB_Location_Profile_Fields {
     
     public function __construct() {
         // Add profile fields to BuddyBoss
-        add_action('bp_after_profile_field_content', array($this, 'add_location_fields'));
+        // Commented out to prevent fields showing on profile page
+        //add_action('bp_after_profile_field_content', array($this, 'add_location_fields'));
         add_action('xprofile_updated_profile', array($this, 'save_location_data'), 10, 1);
         
         // Add privacy settings
