@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BuddyBoss Location Finder
  * Description: Allows BuddyBoss users to set their location and search for other members by proximity, name, and profile type
- * Version: 1.1.3
+ * Version: 1.1.4
  * Author: Jason Wood
  * Text Domain: bb-location-finder
  * Domain Path: /languages
@@ -22,7 +22,7 @@ class BB_Location_Finder {
     /**
      * Plugin version
      */
-    const VERSION = '1.1.3';
+    const VERSION = '1.1.4';
     
     /**
      * Singleton instance
@@ -329,7 +329,10 @@ class BB_Location_Finder {
         require_once BB_LOCATION_FINDER_DIR . 'includes/geocoding.php';
         new BB_Location_Geocoding();
         
-        // Initialize tab integration
+        // Initialize direct BuddyBoss integration - This is the new line
+        require_once BB_LOCATION_FINDER_DIR . 'includes/bb-direct-integration.php';
+        
+        // Initialize tab integration (keeping as fallback)
         require_once BB_LOCATION_FINDER_DIR . 'includes/tab-integration.php';
         
         // Initialize geocode tester (admin only)
