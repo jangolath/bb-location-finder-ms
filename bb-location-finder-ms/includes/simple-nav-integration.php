@@ -226,7 +226,13 @@ class BB_Location_Simple_Nav {
         ?>
         <style>
             /* Force location search link to be visible */
-            .bp-navs ul li#members-location-search,
+            .bp-navs ul li#members-location-search {
+                display: inline-block !important;
+                margin: 10px 0px 0px 0px;
+                float: left;
+                list-style: none;
+            }
+            
             .bp-navs ul li.bb-location-nav-item,
             #subnav li#members-location-search,
             .item-list-tabs li#members-location-search {
@@ -242,7 +248,7 @@ class BB_Location_Simple_Nav {
             .item-list-tabs li#members-location-search a {
                 display: block !important;
                 padding: 0 15px;
-                color: #333 !important; /* Changed to black/dark color */
+                color: #5a5a5a !important; /* Changed to medium grey */
                 text-decoration: none;
                 border: 0;
                 transition: color 0.2s ease;
@@ -270,7 +276,7 @@ class BB_Location_Simple_Nav {
                 background: none !important;
                 border-radius: 0;
                 font-weight: 400;
-                color: #333 !important; /* Ensure black text */
+                color: #5a5a5a !important; /* Ensure medium grey text */
             }
             
             .buddypress-wrap .bp-navs li#members-location-search a:hover,
@@ -287,7 +293,7 @@ class BB_Location_Simple_Nav {
             /* Additional specificity for BuddyBoss themes */
             .bp-navs .bb-location-redirect-link,
             #subnav .bb-location-redirect-link {
-                color: #333 !important;
+                color: #5a5a5a !important;
             }
             
             .bp-navs .bb-location-redirect-link:hover,
