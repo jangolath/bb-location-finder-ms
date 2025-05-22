@@ -98,7 +98,7 @@ class BB_Location_Page_Admin {
         $page_id = get_option('bb_location_search_page_id');
         $show_in_nav = get_option('bb_location_show_in_members_nav', 'yes');
         $nav_text = get_option('bb_location_nav_text', __('Location Search', 'bb-location-finder'));
-        $shortcode_atts = get_option('bb_location_page_shortcode_atts', 'radius_options="5,10,25,50,100" unit="km" show_map="no"');
+        $shortcode_atts = get_option('bb_location_page_shortcode_atts', 'radius_options="5,10,25,50,100,250" unit="mi" show_map="no" exclude_profile_types="staff,moderator"');
         
         // Get available pages
         $pages = get_pages(array('post_status' => 'publish'));
@@ -174,8 +174,8 @@ class BB_Location_Page_Admin {
                             <textarea id="bb_location_page_shortcode_atts" name="bb_location_page_shortcode_atts" rows="3" class="large-text"><?php echo esc_textarea($shortcode_atts); ?></textarea>
                             <p class="description">
                                 <?php _e('Customize the location search shortcode attributes for this page. Example:', 'bb-location-finder'); ?><br>
-                                <code>radius_options="5,10,25,50,100" unit="km" show_map="no" results_per_page="10"</code><br>
-                                <?php _e('Available options: radius_options, unit (km/mi), show_map (yes/no), results_per_page, show_profile_type_filter (yes/no)', 'bb-location-finder'); ?>
+                                <code>radius_options="5,10,25,50,100,250" unit="mi" show_map="no" exclude_profile_types="staff,moderator"</code><br>
+                                <?php _e('Available options: radius_options, unit (km/mi), show_map (yes/no), results_per_page, exclude_profile_types', 'bb-location-finder'); ?>
                             </p>
                         </td>
                     </tr>
@@ -375,8 +375,8 @@ class BB_Location_Page_Admin {
             $page_slug = sanitize_title($page_title);
         }
         
-        // Get current shortcode attributes
-        $shortcode_atts = get_option('bb_location_page_shortcode_atts', 'radius_options="5,10,25,50,100" unit="km" show_map="no"');
+        // Use your preferred shortcode attributes
+        $shortcode_atts = 'radius_options="5,10,25,50,100,250" unit="mi" show_map="no" exclude_profile_types="staff,moderator"';
         
         // Create page content
         $page_content = '<h2>' . __('Find Members Near You', 'bb-location-finder') . '</h2>' . "\n\n";
@@ -397,6 +397,9 @@ class BB_Location_Page_Admin {
             // Update settings
             update_option('bb_location_search_page_id', $page_id);
             update_option('bb_location_show_in_members_nav', 'yes');
+            
+            // Store the shortcode attributes that were used
+            update_option('bb_location_page_shortcode_atts', $shortcode_atts);
             
             // Redirect with success message
             wp_redirect(admin_url('options-general.php?page=bb-location-page&created=success'));
@@ -432,10 +435,10 @@ class BB_Location_Page_Admin {
             $existing_page_id = get_option('bb_location_search_page_id');
             
             if (empty($existing_page_id) || !get_post($existing_page_id)) {
-                // Create page for this site
+                // Create page for this site with proper shortcode content
                 $page_content = '<h2>' . __('Find Members Near You', 'bb-location-finder') . '</h2>' . "\n\n";
                 $page_content .= '<p>' . __('Enter your location below to find community members in your area.', 'bb-location-finder') . '</p>' . "\n\n";
-                $page_content .= '[bb_location_search radius_options="5,10,25,50,100" unit="km" show_map="no"]';
+                $page_content .= '[bb_location_search radius_options="5,10,25,50,100,250" unit="mi" show_map="no" exclude_profile_types="staff,moderator"]';
                 
                 $page_id = wp_insert_post(array(
                     'post_title' => $page_title,
@@ -450,6 +453,10 @@ class BB_Location_Page_Admin {
                     update_option('bb_location_search_page_id', $page_id);
                     update_option('bb_location_show_in_members_nav', $enable_nav);
                     update_option('bb_location_nav_text', $nav_text);
+                    
+                    // Also update the shortcode attributes option to match what we put in the page
+                    update_option('bb_location_page_shortcode_atts', 'radius_options="5,10,25,50,100,250" unit="mi" show_map="no" exclude_profile_types="staff,moderator"');
+                    
                     $created_count++;
                 }
             }
