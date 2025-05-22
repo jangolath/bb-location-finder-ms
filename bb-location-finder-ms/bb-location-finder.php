@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BuddyBoss Location Finder
  * Description: Allows BuddyBoss users to set their location and search for other members by proximity, name, and profile type
- * Version: 1.1.5
+ * Version: 1.1.6
  * Author: Jason Wood
  * Text Domain: bb-location-finder
  * Domain Path: /languages
@@ -22,7 +22,7 @@ class BB_Location_Finder {
     /**
      * Plugin version
      */
-    const VERSION = '1.1.5';
+    const VERSION = '1.1.6';
     
     /**
      * Singleton instance
@@ -329,11 +329,11 @@ class BB_Location_Finder {
         require_once BB_LOCATION_FINDER_DIR . 'includes/geocoding.php';
         new BB_Location_Geocoding();
         
-        // Initialize direct BuddyBoss integration - This is the new line
-        require_once BB_LOCATION_FINDER_DIR . 'includes/bb-direct-integration.php';
+        // Initialize page admin (NEW)
+        require_once BB_LOCATION_FINDER_DIR . 'includes/page-admin.php';
         
-        // Initialize tab integration (keeping as fallback)
-        require_once BB_LOCATION_FINDER_DIR . 'includes/tab-integration.php';
+        // Initialize simple navigation integration (NEW - replaces complex tab integration)
+        require_once BB_LOCATION_FINDER_DIR . 'includes/simple-nav-integration.php';
         
         // Initialize geocode tester (admin only)
         if (current_user_can('administrator')) {
@@ -353,6 +353,87 @@ class BB_Location_Finder {
         if (current_user_can('administrator')) {
             add_shortcode('bb_location_geocode_test', array(new BB_Location_Geocode_Tester(), 'geocode_test_shortcode'));
         }
+    }
+
+    // Also update your settings page to show link to page admin
+    public function settings_page_content() {
+        $is_network_admin = is_multisite() && is_network_admin();
+        $form_action = $is_network_admin ? 'edit.php?action=bb_location_finder_update_network_options' : 'options.php';
+        
+        // Get API key
+        $api_key = $is_network_admin ? 
+                get_site_option('bb_location_google_api_key', '') : 
+                get_option('bb_location_google_api_key', '');
+        
+        // Show settings updated message if needed
+        if (isset($_GET['updated']) && $_GET['updated'] === 'true' && $is_network_admin) {
+            ?>
+            <div class="updated notice is-dismissible">
+                <p><?php _e('Settings saved.', 'bb-location-finder'); ?></p>
+            </div>
+            <?php
+        }
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Location Finder Settings', 'bb-location-finder'); ?></h1>
+            
+            <?php if ($is_network_admin): ?>
+            <p><?php _e('These settings will apply to all sites in the network.', 'bb-location-finder'); ?></p>
+            <?php endif; ?>
+            
+            <!-- NEW: Quick links section -->
+            <div class="card">
+                <h2><?php _e('Quick Setup', 'bb-location-finder'); ?></h2>
+                <p><?php _e('Get started with Location Finder:', 'bb-location-finder'); ?></p>
+                <ul>
+                    <li>
+                        <?php if ($is_network_admin): ?>
+                            <a href="<?php echo network_admin_url('admin.php?page=bb-location-pages'); ?>" class="button button-secondary">
+                                <?php _e('Configure Location Search Pages', 'bb-location-finder'); ?>
+                            </a>
+                        <?php else: ?>
+                            <a href="<?php echo admin_url('options-general.php?page=bb-location-page'); ?>" class="button button-secondary">
+                                <?php _e('Set Up Location Search Page', 'bb-location-finder'); ?>
+                            </a>
+                        <?php endif; ?>
+                        - <?php _e('Create and configure your location search page', 'bb-location-finder'); ?>
+                    </li>
+                    <li>
+                        <a href="<?php echo admin_url('options-general.php?page=bb-location-finder'); ?>" class="button button-secondary">
+                            <?php _e('API Settings', 'bb-location-finder'); ?>
+                        </a>
+                        - <?php _e('Configure Google Maps API key', 'bb-location-finder'); ?>
+                    </li>
+                </ul>
+            </div>
+            
+            <form method="post" action="<?php echo esc_url($form_action); ?>">
+                <?php if ($is_network_admin): ?>
+                    <?php wp_nonce_field('bb_location_finder_network_options'); ?>
+                    <input type="hidden" name="action" value="bb_location_finder_update_network_options">
+                <?php else: ?>
+                    <?php settings_fields('bb_location_finder_settings'); ?>
+                <?php endif; ?>
+                
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">
+                            <label for="bb_location_google_api_key"><?php _e('Google Maps API Key', 'bb-location-finder'); ?></label>
+                        </th>
+                        <td>
+                            <input type="text" id="bb_location_google_api_key" name="bb_location_google_api_key" 
+                                value="<?php echo esc_attr($api_key); ?>" class="regular-text" />
+                            <p class="description">
+                                <?php _e('Enter your Google Maps API key with Geocoding, Places and Maps JavaScript APIs enabled.', 'bb-location-finder'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                
+                <?php submit_button(); ?>
+            </form>
+        </div>
+        <?php
     }
         
     /**
