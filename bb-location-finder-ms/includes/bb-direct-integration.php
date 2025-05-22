@@ -1,5 +1,5 @@
 <?php
-// Create a new file: includes/bb-direct-integration.php
+// includes/bb-direct-integration.php
 
 /**
  * Direct integration with BuddyBoss for Location Finder
@@ -19,6 +19,16 @@ class BB_Direct_Integration {
         // Register JavaScript to help with tab switching
         add_action('wp_footer', array($this, 'add_tab_script'));
         
+        // Fix for tab alignment - NEW
+        add_action('wp_head', array($this, 'add_tab_alignment_css'));
+        
+        // Critical fix for content display - highest priority - NEW
+        add_action('bp_before_directory_members', array($this, 'add_content_container'), 5);
+        
+        // Fix for tab content display on AJAX load - NEW
+        add_action('wp_ajax_members_filter', array($this, 'handle_ajax_filter'), 1);
+        add_action('wp_ajax_nopriv_members_filter', array($this, 'handle_ajax_filter'), 1);
+        
         // Add AJAX handler for location search in tab
         add_action('wp_ajax_bb_direct_location_search', array($this, 'ajax_location_search'));
         add_action('wp_ajax_nopriv_bb_direct_location_search', array($this, 'ajax_location_search'));
@@ -28,6 +38,173 @@ class BB_Direct_Integration {
         
         // Handle tab selection
         add_action('bp_template_include_reset_dummy_post_data', array($this, 'maybe_set_location_tab'), 10);
+    }
+    
+    /**
+     * Add tab alignment CSS - NEW METHOD
+     */
+    public function add_tab_alignment_css() {
+        // Only on members directory
+        if (!bp_is_members_component() || bp_is_user()) {
+            return;
+        }
+        
+        ?>
+        <style>
+            /* Fix tab alignment */
+            .bp-navs ul li a[data-bp-item="location-search"],
+            .bp-navs ul li.location-search a {
+                padding-top: 10px !important;
+                display: flex !important;
+                align-items: center;
+            }
+            
+            /* Fix for tab containers */
+            body.buddypress.members #content .members-content {
+                position: relative;
+            }
+            
+            /* Force our container to display */
+            #buddypress .location-search-content-container {
+                display: block !important;
+            }
+            
+            /* Hide normal content when location tab is active */
+            body.location-search-active #members-dir-list {
+                display: none !important;
+            }
+        </style>
+        <?php
+    }
+    
+    /**
+     * Add content container at the right spot in the DOM - NEW METHOD
+     */
+    public function add_content_container() {
+        // Only on members directory
+        if (!bp_is_members_component() || bp_is_user()) {
+            return;
+        }
+        
+        // Check if our content container should be active
+        $is_active = $this->is_location_tab_active();
+        $active_class = $is_active ? 'active' : '';
+        
+        // Add our container directly in the DOM
+        ?>
+        <div id="location-search-content-container" class="location-search-content-container <?php echo $active_class; ?>" style="<?php echo $is_active ? '' : 'display: none;'; ?>">
+            <?php $this->location_tab_content(); ?>
+        </div>
+        
+        <script>
+        jQuery(document).ready(function($) {
+            // Enhanced tab switching logic
+            function setupLocationTab() {
+                // Fix tab click events
+                $('.bp-navs li a[data-bp-item="location-search"], .bp-navs li.location-search a').on('click', function(e) {
+                    e.preventDefault();
+                    
+                    console.log('Location tab clicked - enhanced handler');
+                    
+                    // Set as active
+                    $('body').addClass('location-search-active');
+                    
+                    // Update tab classes
+                    $('.bp-navs li').removeClass('selected current');
+                    $(this).parent().addClass('selected current');
+                    
+                    // Hide directory content
+                    $('#members-dir-list').hide();
+                    
+                    // Show our content
+                    $('.location-search-content-container').show();
+                    
+                    // Store state in local storage
+                    localStorage.setItem('bp-location-tab-active', 'true');
+                    
+                    // Update URL
+                    history.pushState(null, null, $(this).attr('href') || window.location.pathname + '?type=location-search');
+                    
+                    return false;
+                });
+                
+                // Handle other tab clicks
+                $('.bp-navs li a:not([data-bp-item="location-search"])').on('click', function() {
+                    if ($(this).parent().hasClass('location-search')) {
+                        return;
+                    }
+                    
+                    $('body').removeClass('location-search-active');
+                    $('.location-search-content-container').hide();
+                    $('#members-dir-list').show();
+                    
+                    localStorage.removeItem('bp-location-tab-active');
+                });
+                
+                // Initial setup if tab is active
+                if (isLocationTabActive()) {
+                    $('body').addClass('location-search-active');
+                    $('#members-dir-list').hide();
+                    $('.location-search-content-container').show();
+                    
+                    // Set tab as active
+                    $('.bp-navs li').removeClass('selected current');
+                    $('.bp-navs li a[data-bp-item="location-search"]').parent().addClass('selected current');
+                    $('.bp-navs li.location-search').addClass('selected current');
+                }
+            }
+            
+            function isLocationTabActive() {
+                // Check URL
+                if (window.location.href.indexOf('type=location-search') > -1) {
+                    return true;
+                }
+                
+                // Check localStorage
+                if (localStorage.getItem('bp-location-tab-active') === 'true') {
+                    return true;
+                }
+                
+                return false;
+            }
+            
+            // Setup on page load
+            setupLocationTab();
+            
+            // Initialize Google Places Autocomplete
+            setTimeout(function() {
+                var searchField = document.getElementById('bb_search_location');
+                if (searchField && typeof google !== 'undefined' && typeof google.maps !== 'undefined' && typeof google.maps.places !== 'undefined') {
+                    var searchAutocomplete = new google.maps.places.Autocomplete(searchField, {
+                        types: ['(cities)']
+                    });
+                    console.log('Location autocomplete initialized successfully');
+                } else {
+                    console.log('Could not initialize autocomplete', {
+                        fieldExists: !!document.getElementById('bb_search_location'),
+                        googleExists: typeof google !== 'undefined',
+                        mapsExists: typeof google !== 'undefined' && typeof google.maps !== 'undefined',
+                        placesExists: typeof google !== 'undefined' && 
+                                     typeof google.maps !== 'undefined' && 
+                                     typeof google.maps.places !== 'undefined'
+                    });
+                }
+            }, 1000);
+        });
+        </script>
+        <?php
+    }
+    
+    /**
+     * Handle AJAX filtering for BP's member directory - NEW METHOD
+     */
+    public function handle_ajax_filter() {
+        // Check if our filter is active
+        if (isset($_POST['filter']) && $_POST['filter'] === 'location-search') {
+            // We'll respond with our content
+            $this->location_tab_content();
+            die();
+        }
     }
     
     /**
@@ -479,16 +656,31 @@ class BB_Direct_Integration {
     }
     
     /**
-     * Location tab content
+     * Check if location tab is active - NEW METHOD
+     */
+    private function is_location_tab_active() {
+        // Check URL parameter
+        if (isset($_GET['type']) && $_GET['type'] === 'location-search') {
+            return true;
+        }
+        
+        // Check cookie
+        if (isset($_COOKIE['bp-members-filter']) && $_COOKIE['bp-members-filter'] === 'location-search') {
+            return true;
+        }
+        
+        // Check AJAX request
+        if (defined('DOING_AJAX') && DOING_AJAX && isset($_POST['filter']) && $_POST['filter'] === 'location-search') {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Location tab content - UPDATED METHOD
      */
     public function location_tab_content() {
-        // Make sure this only runs once
-        static $rendered = false;
-        if ($rendered) {
-            return;
-        }
-        $rendered = true;
-        
         // Get settings via filters
         $radius_options = apply_filters('bb_location_tab_radius_options', '5,10,25,50,100');
         $unit = apply_filters('bb_location_tab_unit', 'km');
@@ -719,20 +911,6 @@ class BB_Direct_Integration {
                 color: var(--bb-primary-color, #007CFF);
             }
         </style>
-        
-        <script>
-            // Initialize Google Places Autocomplete
-            document.addEventListener('DOMContentLoaded', function() {
-                console.log('Attempting to initialize location autocomplete');
-                
-                var searchField = document.getElementById('bb_search_location');
-                if (searchField && typeof google !== 'undefined' && typeof google.maps !== 'undefined' && typeof google.maps.places !== 'undefined') {
-                    var searchAutocomplete = new google.maps.places.Autocomplete(searchField, {
-                        types: ['(cities)']
-                    });
-                }
-            });
-        </script>
         <?php
     }
     
