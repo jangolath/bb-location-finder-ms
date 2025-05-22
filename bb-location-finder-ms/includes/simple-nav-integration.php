@@ -2,7 +2,7 @@
 // includes/simple-nav-integration.php
 
 /**
- * Simple navigation integration - just adds a link to the location search page
+ * Simple navigation integration - adds a link to the location search page with forced redirect
  */
 class BB_Location_Simple_Nav {
     
@@ -17,9 +17,9 @@ class BB_Location_Simple_Nav {
         // Also try the nouveau template hooks
         add_filter('bp_nouveau_get_members_directory_nav_items', array($this, 'add_location_nav_item'), 10, 1);
         
-        // Add CSS and debug info
+        // Add CSS and JavaScript for forced redirect behavior
         add_action('wp_head', array($this, 'add_nav_css'));
-        add_action('wp_footer', array($this, 'debug_info'));
+        add_action('wp_footer', array($this, 'add_redirect_script'));
         
         // Log when the class is constructed
         error_log('BB Location Finder - BB_Location_Simple_Nav constructed');
@@ -72,7 +72,7 @@ class BB_Location_Simple_Nav {
             $nav_items['location-search'] = array(
                 'component' => 'members',
                 'slug' => 'location-search',
-                'li_class' => array('location-search-link'),
+                'li_class' => array('location-search-link', 'bb-location-external-link'),
                 'link' => $page_url,
                 'text' => '📍 ' . $nav_text,
                 'count' => false,
@@ -96,8 +96,8 @@ class BB_Location_Simple_Nav {
             $page_url = get_permalink($page_id);
             error_log('BB Location Finder - Outputting nav link HTML for page: ' . $page_url);
             ?>
-            <li id="members-location-search" class="bb-location-nav-item">
-                <a href="<?php echo esc_url($page_url); ?>">
+            <li id="members-location-search" class="bb-location-nav-item bb-location-external-link">
+                <a href="<?php echo esc_url($page_url); ?>" class="bb-location-redirect-link" data-bb-location-url="<?php echo esc_url($page_url); ?>">
                     📍 <?php echo esc_html($nav_text); ?>
                 </a>
             </li>
@@ -119,23 +119,24 @@ class BB_Location_Simple_Nav {
             jQuery(document).ready(function($) {
                 console.log('BB Location Finder - Adding fallback navigation link');
                 
+                // Prevent multiple additions
+                if ($('#members-location-search').length > 0) {
+                    console.log('BB Location Finder - Navigation link already exists');
+                    return;
+                }
+                
                 // Try to find the navigation container
                 var $nav = $('.bp-navs ul, #subnav ul, .item-list-tabs ul').first();
                 
                 if ($nav.length) {
                     console.log('BB Location Finder - Found navigation container:', $nav[0]);
                     
-                    // Check if our link already exists
-                    if ($('#members-location-search').length === 0) {
-                        var linkHtml = '<li id="members-location-search" class="bb-location-nav-item">' +
-                                      '<a href="<?php echo esc_js($page_url); ?>">📍 <?php echo esc_js($nav_text); ?></a>' +
-                                      '</li>';
-                        
-                        $nav.append(linkHtml);
-                        console.log('BB Location Finder - Added fallback navigation link');
-                    } else {
-                        console.log('BB Location Finder - Navigation link already exists');
-                    }
+                    var linkHtml = '<li id="members-location-search" class="bb-location-nav-item bb-location-external-link">' +
+                                  '<a href="<?php echo esc_js($page_url); ?>" class="bb-location-redirect-link" data-bb-location-url="<?php echo esc_js($page_url); ?>">📍 <?php echo esc_js($nav_text); ?></a>' +
+                                  '</li>';
+                    
+                    $nav.append(linkHtml);
+                    console.log('BB Location Finder - Added fallback navigation link');
                 } else {
                     console.log('BB Location Finder - Could not find navigation container');
                 }
@@ -230,54 +231,95 @@ class BB_Location_Simple_Nav {
                 background: none !important;
                 color: var(--bb-primary-color, #007CFF);
             }
+            
+            /* Ensure external links don't get AJAX styling */
+            .bb-location-external-link a {
+                cursor: pointer !important;
+            }
         </style>
         <?php
     }
     
     /**
-     * Debug information output
+     * Add JavaScript to force redirect behavior
      */
-    public function debug_info() {
+    public function add_redirect_script() {
         // Only on members directory
         if (!bp_is_members_component() || bp_is_user()) {
             return;
         }
         
-        $page_id = get_option('bb_location_search_page_id');
-        $show_in_nav = get_option('bb_location_show_in_members_nav', 'yes');
-        $nav_text = get_option('bb_location_nav_text', __('Location Search', 'bb-location-finder'));
-        $page_exists = $page_id && get_post($page_id);
-        
         ?>
         <script>
-        // Always output debug info for troubleshooting
-        console.log('=== BB Location Finder Debug Info ===');
-        console.log('Current URL:', window.location.href);
-        console.log('Page Body Classes:', document.body.className);
-        console.log('Configuration:', {
-            'Page ID': '<?php echo $page_id; ?>',
-            'Show in Nav': '<?php echo $show_in_nav; ?>',
-            'Nav Text': '<?php echo esc_js($nav_text); ?>',
-            'Page Exists': <?php echo $page_exists ? 'true' : 'false'; ?>,
-            'Should Show': <?php echo $this->should_show_nav() ? 'true' : 'false'; ?>
-        });
-        
-        // Check for BuddyPress/BuddyBoss elements
         jQuery(document).ready(function($) {
-            console.log('Navigation containers found:');
-            console.log('  .bp-navs ul:', $('.bp-navs ul').length);
-            console.log('  #subnav ul:', $('#subnav ul').length);
-            console.log('  .item-list-tabs ul:', $('.item-list-tabs ul').length);
+            console.log('BB Location Finder - Setting up redirect behavior');
             
-            console.log('Location search nav element:', $('#members-location-search').length ? 'Found' : 'Not Found');
-            
-            if ($('#members-location-search').length) {
-                console.log('Location search nav element details:', $('#members-location-search')[0]);
+            // Function to handle the redirect
+            function handleLocationSearchClick(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                var url = $(this).attr('href') || $(this).data('bb-location-url');
+                
+                console.log('BB Location Finder - Redirecting to:', url);
+                
+                if (url) {
+                    // Force a page redirect
+                    window.location.href = url;
+                } else {
+                    console.error('BB Location Finder - No URL found for redirect');
+                }
+                
+                return false;
             }
             
-            // List all navigation items for debugging
-            $('.bp-navs ul li, #subnav ul li, .item-list-tabs ul li').each(function(index) {
-                console.log('Nav item ' + index + ':', $(this).attr('id') || 'no-id', $(this).text().trim());
+            // Attach click handler to existing links
+            function attachRedirectHandler() {
+                $('.bb-location-redirect-link, #members-location-search a').off('click.bb-location').on('click.bb-location', handleLocationSearchClick);
+                console.log('BB Location Finder - Attached redirect handlers to', $('.bb-location-redirect-link, #members-location-search a').length, 'elements');
+            }
+            
+            // Initial attachment
+            attachRedirectHandler();
+            
+            // Re-attach after AJAX calls (BuddyBoss might reload navigation)
+            $(document).on('DOMNodeInserted', function(e) {
+                if ($(e.target).find('#members-location-search').length > 0 || $(e.target).is('#members-location-search')) {
+                    setTimeout(attachRedirectHandler, 100);
+                }
+            });
+            
+            // Also try with MutationObserver for modern browsers
+            if (window.MutationObserver) {
+                var observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'childList') {
+                            var $target = $(mutation.target);
+                            if ($target.find('#members-location-search').length > 0 || 
+                                $target.is('#members-location-search') ||
+                                $target.find('.bb-location-redirect-link').length > 0) {
+                                setTimeout(attachRedirectHandler, 100);
+                            }
+                        }
+                    });
+                });
+                
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+            
+            // Override BuddyBoss AJAX navigation for our specific link
+            $(document).on('click', '.bp-navs a[href*="location-search"], #subnav a[href*="location-search"]', function(e) {
+                var href = $(this).attr('href');
+                if (href && (href.indexOf('location-search') !== -1 || $(this).hasClass('bb-location-redirect-link'))) {
+                    console.log('BB Location Finder - Intercepting BuddyBoss AJAX for location search');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.location.href = href;
+                    return false;
+                }
             });
         });
         </script>
